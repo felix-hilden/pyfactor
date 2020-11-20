@@ -1,2 +1,2 @@
 include readme.rst
-include package/VERSION
+include pyfactor/VERSION

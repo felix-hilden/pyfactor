@@ -2,19 +2,13 @@ import setuptools
 import os
 from pathlib import Path
 
-"""
-See the following resources:
-* https://setuptools.readthedocs.io/en/latest/setuptools.html
-* https://docs.python.org/3.7/distutils/setupscript.html
-"""
-
 root = Path(os.path.realpath(__file__)).parent
-version_file = root / 'package' / 'VERSION'
+version_file = root / 'pyfactor' / 'VERSION'
 readme_file = root / 'readme.rst'
 
-pypi_url = 'https://pypi.org/project/python-package'
-github_url = 'https://github.com/felix-hilden/python-package'
-documentation_url = github_url + '/wiki'
+pypi_url = 'https://pypi.org/project/pyfactor'
+github_url = 'https://github.com/felix-hilden/pyfactor'
+documentation_url = github_url
 
 extras_require = {
     'docs': [
@@ -40,9 +34,9 @@ extras_require['dev'] = (
 )
 
 setuptools.setup(
-    name='python-package',
+    name='pyfactor',
     version=version_file.read_text().strip(),
-    description='Python package template',
+    description='A script dependency visualiser.',
     long_description=readme_file.read_text(),
     long_description_content_type='text/x-rst',
 
@@ -60,15 +54,20 @@ setuptools.setup(
     maintainer_email='felix.hilden@gmail.com',
 
     license='MIT',
-    keywords='python package template',
+    keywords='dependency visualiser',
     packages=setuptools.find_packages(exclude=('tests', 'tests.*',)),
     include_package_data=True,
     package_data={
-        'package': ['VERSION']
+        'pyfactor': ['VERSION']
+    },
+    entry_points={
+        'console_scripts': ['pyfactor=pyfactor:cli_main']
     },
 
     python_requires='>=3.6',
-    install_requires=[],
+    install_requires=[
+        'graphviz',
+    ],
     extras_require=extras_require,
 
     classifiers=[],
