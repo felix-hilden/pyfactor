@@ -61,11 +61,13 @@ setuptools.setup(
         'pyfactor': ['VERSION']
     },
     entry_points={
-        'console_scripts': ['pyfactor=pyfactor:cli_main']
+        'console_scripts': ['pyfactor=pyfactor:main']
     },
 
     python_requires='>=3.6',
     install_requires=[
+        'pydot',
+        'networkx',
         'graphviz',
     ],
     extras_require=extras_require,

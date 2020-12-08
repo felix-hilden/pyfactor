@@ -37,7 +37,8 @@ See the help for details.
    $ pyfactor --help
    $ pyfactor script.py
 
-In code, :code:`pyfactor.main` is exposed with similar arguments for importing.
+:code:`pyfactor.parse` and :code:`pyfactor.render`
+are exposed with similar arguments for importing and usage in code.
 
 Examples
 --------
