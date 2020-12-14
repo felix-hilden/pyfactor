@@ -33,8 +33,8 @@ def parse(
         do not visualise imports (reducing clutter)
     """
     source = read_source(source_path)
-    references, formats = parse_refs(source, skip_imports)
-    graph = create_graph(references, formats)
+    references, infos = parse_refs(source, skip_imports)
+    graph = create_graph(references, infos)
     write_graph(graph, graph_path)
 
 

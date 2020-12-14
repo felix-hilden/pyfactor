@@ -1,7 +1,9 @@
 import ast
 
+from enum import Enum
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Set, List, Tuple, Generator
+from typing import Set, List, Tuple, Generator, Iterable
 
 
 def read_source(path: str) -> str:
@@ -9,7 +11,7 @@ def read_source(path: str) -> str:
     return Path(path).read_text(encoding='utf-8')
 
 
-def _multi_union(sets: List[Set]) -> Set:
+def _multi_union(sets: Iterable[Set]) -> Set:
     """Union of multiple sets."""
     return set().union(*sets)
 
@@ -26,7 +28,7 @@ def _collect_names(node: ast.AST) -> Set[str]:
 def _node_names(node: ast.AST) -> Set[str]:
     """Generate names that a node is referred to with."""
     if isinstance(node, ast.Assign):
-        return _multi_union([_collect_names(t) for t in node.targets])
+        return _multi_union(_collect_names(t) for t in node.targets)
     elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
         return {node.name}
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -42,20 +44,34 @@ def _node_refs(node: ast.AST) -> Set[str]:
     return _collect_names(node)
 
 
-def _display_format(node: ast.AST) -> str:
+class NodeType(Enum):
+    var = 'V'
+    func = 'F'
+    class_ = 'C'
+    import_ = 'I'
+    unknown = '?'
+
+
+@dataclass
+class NodeInfo:
+    type: NodeType
+    lineno: int
+
+
+def _node_info(node: ast.AST) -> NodeInfo:
     """Return format string for displaying a node."""
     if isinstance(node, ast.Assign):
-        pre = 'V'
+        t = NodeType.var
     elif isinstance(node, ast.FunctionDef):
-        pre = 'F'
+        t = NodeType.func
     elif isinstance(node, ast.ClassDef):
-        pre = 'C'
+        t = NodeType.class_
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
-        pre = 'I'
+        t = NodeType.import_
     else:
-        pre = '?'
+        t = NodeType.unknown
 
-    return f'{{}} - {pre}:{node.lineno}'
+    return NodeInfo(t, node.lineno)
 
 
 def _top_nodes(
@@ -71,14 +87,14 @@ def _top_nodes(
 def parse_refs(
     source: str,
     skip_imports: bool = False,
-) -> Tuple[List[Tuple[Set[str], Set[str]]], List[str]]:
+) -> Tuple[List[Tuple[Set[str], Set[str]]], List[NodeInfo]]:
     """Parse a reference array from source."""
     tree = ast.parse(source)
     refs = [
-        (_node_names(node), _node_refs(node), _display_format(node))
+        (_node_names(node), _node_refs(node), _node_info(node))
         for node in _top_nodes(tree, skip_imports)
     ]
-    refable_names = _multi_union([i[0] for i in refs])
+    refable_names = _multi_union(i[0] for i in refs)
     ref_array = [
         (ref[0], ref[1].intersection(refable_names))
         for ref in refs
