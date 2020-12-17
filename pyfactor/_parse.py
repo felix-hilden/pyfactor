@@ -17,12 +17,12 @@ def _multi_union(sets: Iterable[Set]) -> Set:
 
 
 def _collect_names(node: ast.AST) -> Set[str]:
-    """Collect all names that a node has as children."""
-    names = []
+    """Naively collect all names that a node has as children."""
+    names = set()
     for n in ast.walk(node):
         if isinstance(n, ast.Name):
-            names.append(n.id)
-    return set(names)
+            names.add(n.id)
+    return names
 
 
 def _node_names(node: ast.AST) -> Set[str]:
@@ -37,10 +37,84 @@ def _node_names(node: ast.AST) -> Set[str]:
         return set()
 
 
+def _scoped_node_refs(node: ast.AST) -> Tuple[Set[str], Set[str]]:
+    """Generate names of children as (potential globals, sure globals)."""
+    used = set()
+    assigned = set()
+    globaled = set()
+    nonlocaled = set()
+
+    i = 0
+    iterate = []
+    recurse = []
+
+    if isinstance(node, ast.FunctionDef):
+        all_args = node.args.args + node.args.kwonlyargs
+        all_args += [node.args.vararg, node.args.kwarg]
+        all_args = [arg for arg in all_args if arg is not None]
+        assigned.update(a.arg for a in all_args)
+        annotation_names = (
+            _collect_names(a.annotation)
+            for a in all_args if a.annotation is not None
+        )
+        globaled.update(_multi_union(annotation_names))
+        fdef_sources = node.args.kw_defaults + node.args.defaults
+        fdef_sources += node.decorator_list + [node.returns]
+        fdef_names = (_collect_names(d) for d in fdef_sources if d is not None)
+        globaled.update(_multi_union(fdef_names))
+        successors = node.body
+    elif isinstance(node, ast.ClassDef):
+        cdef_sources = node.bases + node.keywords
+        cdef_sources += node.decorator_list
+        cdef_names = (_collect_names(b) for b in cdef_sources)
+        globaled.update(_multi_union(cdef_names))
+        successors = node.body
+    else:
+        successors = list(ast.iter_child_nodes(node))
+
+    iterate.extend(successors)
+
+    while i < len(iterate):
+        n = iterate[i]
+        assigned.update(_node_names(n) - used)
+        if isinstance(n, ast.Name):
+            used.add(n.id)
+        elif isinstance(n, ast.Global):
+            globaled.update(n.names)
+        elif isinstance(n, ast.Nonlocal):
+            nonlocaled.update(n.names)
+        elif isinstance(n, (ast.FunctionDef, ast.ClassDef)):
+            recurse.append(n)
+        else:
+            iterate[i+1:i+1] = list(ast.iter_child_nodes(n))
+        i += 1
+
+    inner_potential = set()
+    inner_globaled = set()
+
+    for n in recurse:
+        potential_, globaled_ = _scoped_node_refs(n)
+        inner_potential.update(potential_)
+        inner_globaled.update(globaled_)
+
+    # Nonlocaled can be considered "from this scope" because they requires
+    # an inner function scope, so we don't care about them here
+    from_this_scope = (assigned | nonlocaled) - globaled
+    if isinstance(node, ast.FunctionDef):
+        from_outer_scopes = (used | inner_potential) - from_this_scope - globaled
+    else:
+        from_outer_scopes = (used - from_this_scope - globaled) | inner_potential
+
+    return from_outer_scopes, globaled | inner_globaled
+
+
 def _node_refs(node: ast.AST) -> Set[str]:
     """Generate all names that a node refers to."""
     if isinstance(node, ast.Assign):
         node = node.value
+    elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+        return _multi_union(_scoped_node_refs(node))
+
     return _collect_names(node)
 
 
