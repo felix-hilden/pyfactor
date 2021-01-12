@@ -8,7 +8,7 @@ parser = ArgumentParser(
         'Use cases:\n'
         '- pyfactor SOURCE      Read source file and render graph\n'
         '- pyfactor -g SOURCE   Read graph file and render\n'
-        '- pyfactor SOURCE -do  Read source file, generate graph file and render\n'
+        '- pyfactor SOURCE -go  Read source file, generate graph file and render\n'
         '- pyfactor SOURCE -no  Read source file, only generating graph file\n'
     ),
 )
@@ -37,6 +37,11 @@ group_mode.add_argument('--no-output', '-no', action='store_true', help=(
     'do not generate render output (note: writes a graph file, checking '
     '--graph-output for a potential file name)'
 ))
+group_mode.add_argument(
+    '--legend', '-l', nargs='?', default=None, const='pyfactor-legend', help=(
+        'render a legend (default: %(const)s)'
+    )
+)
 
 group_graph = parser.add_argument_group('Graph appearance')
 group_graph.add_argument(

@@ -11,7 +11,7 @@ _version_file = _Path(_os.path.realpath(__file__)).parent / 'VERSION'
 __version__ = _version_file.read_text().strip()
 
 from ._cli import parser as _parser
-from ._graph import create_graph, write_graph, render
+from ._graph import create_graph, write_graph, read_graph, render, create_legend
 from ._parse import read_source, parse_refs
 
 
@@ -46,8 +46,13 @@ def main() -> None:
         print(f'Pyfactor v.{__version__}', file=_stderr)
         exit(0)
 
+    if args.legend is not None:
+        graph_content = create_legend()
+        render(graph_content, args.legend, view=args.open, format=args.format)
+
     if args.source is None:
-        _parser.print_help(_stderr)
+        if args.legend is None:
+            _parser.print_help(_stderr)
         exit(1)
 
     if not args.graph_source:
@@ -65,7 +70,8 @@ def main() -> None:
         else:
             out_path = args.output
 
-        render(graph_path, out_path, view=args.open, format=args.format)
+        graph_content = read_graph(graph_path)
+        render(graph_content, out_path, view=args.open, format=args.format)
 
         if not args.graph_output:
             try:
