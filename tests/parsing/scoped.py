@@ -117,6 +117,12 @@ def foo():
         return source, refs
 
     @refs_equal
+    def test_func_called(self):
+        source = 'def foo():\n    return\na = foo()'
+        refs = [({'foo'}, set()), ({'a'}, {'foo'})]
+        return source, refs
+
+    @refs_equal
     def test_class_body_uses_undeclared_var(self):
         source = 'class A:\n    b = 1'
         refs = [({'A'}, set())]
@@ -186,4 +192,38 @@ class A:
         self.a = a
 """
         refs = [({'a'}, set()), ({'A'}, {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_class_instantiated(self):
+        source = 'class A:\n  pass\na = A()'
+        refs = [({'A'}, set()), ({'a'}, {'A'})]
+        return source, refs
+
+    @refs_equal
+    def test_classmethod_used(self):
+        source = 'class A:\n  pass\na = A.meth()'
+        refs = [({'A'}, set()), ({'a'}, {'A'})]
+        return source, refs
+
+    @refs_equal
+    def test_lambda_argument_shadows(self):
+        source = "a = 1\nb = lambda a: a"
+        refs = [({'a'}, set()), ({'b'}, set())]
+        return source, refs
+
+    @refs_equal
+    def test_lambda_in_call_shadows(self):
+        source = "a = 1\nb = foo(lambda a: a)"
+        refs = [({'a'}, set()), ({'b'}, set())]
+        return source, refs
+
+    @refs_equal
+    def test_lambda_in_scope_shadows(self):
+        source = """
+a = 1
+def foo():
+    return lambda a: a
+"""
+        refs = [({'a'}, set()), ({'foo'}, set())]
         return source, refs

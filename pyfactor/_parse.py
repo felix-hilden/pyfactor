@@ -37,7 +37,14 @@ def _node_names(node: ast.AST) -> Set[str]:
         return set()
 
 
-def _scoped_node_refs(node: ast.AST) -> Tuple[Set[str], Set[str]]:
+def _collect_args(args: ast.arguments):
+    """Collect function arguments."""
+    all_args = args.args + args.kwonlyargs
+    all_args += [args.vararg, args.kwarg]
+    return [arg for arg in all_args if arg is not None]
+
+
+def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     """Generate names of children as (potential globals, sure globals)."""
     used = set()
     assigned = set()
@@ -48,10 +55,14 @@ def _scoped_node_refs(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     iterate = []
     recurse = []
 
-    if isinstance(node, ast.FunctionDef):
-        all_args = node.args.args + node.args.kwonlyargs
-        all_args += [node.args.vararg, node.args.kwarg]
-        all_args = [arg for arg in all_args if arg is not None]
+    if isinstance(node, ast.Assign):
+        successors = [node.value]
+    elif isinstance(node, ast.Lambda):
+        all_args = _collect_args(node.args)
+        assigned.update(a.arg for a in all_args)
+        successors = [node.body]
+    elif isinstance(node, ast.FunctionDef):
+        all_args = _collect_args(node.args)
         assigned.update(a.arg for a in all_args)
         annotation_names = (
             _collect_names(a.annotation)
@@ -83,7 +94,7 @@ def _scoped_node_refs(node: ast.AST) -> Tuple[Set[str], Set[str]]:
             globaled.update(n.names)
         elif isinstance(n, ast.Nonlocal):
             nonlocaled.update(n.names)
-        elif isinstance(n, (ast.FunctionDef, ast.ClassDef)):
+        elif isinstance(n, (ast.FunctionDef, ast.Lambda, ast.ClassDef)):
             recurse.append(n)
         else:
             iterate[i+1:i+1] = list(ast.iter_child_nodes(n))
@@ -93,29 +104,24 @@ def _scoped_node_refs(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     inner_globaled = set()
 
     for n in recurse:
-        potential_, globaled_ = _scoped_node_refs(n)
+        potential_, globaled_ = _node_refs_recursive(n)
         inner_potential.update(potential_)
         inner_globaled.update(globaled_)
 
-    # Nonlocaled can be considered "from this scope" because they requires
+    # Nonlocaled can be considered "from this scope" because they require
     # an inner function scope, so we don't care about them here
     from_this_scope = (assigned | nonlocaled) - globaled
-    if isinstance(node, ast.FunctionDef):
-        from_outer_scopes = (used | inner_potential) - from_this_scope - globaled
-    else:
+    if isinstance(node, ast.ClassDef):
         from_outer_scopes = (used - from_this_scope - globaled) | inner_potential
+    else:
+        from_outer_scopes = (used | inner_potential) - from_this_scope - globaled
 
     return from_outer_scopes, globaled | inner_globaled
 
 
 def _node_refs(node: ast.AST) -> Set[str]:
     """Generate all names that a node refers to."""
-    if isinstance(node, ast.Assign):
-        node = node.value
-    elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-        return _multi_union(_scoped_node_refs(node))
-
-    return _collect_names(node)
+    return _multi_union(_node_refs_recursive(node))
 
 
 class NodeType(Enum):
