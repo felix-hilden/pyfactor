@@ -7,6 +7,8 @@ from ._parse import NodeInfo, NodeType
 
 
 class ConnectivityColor(Enum):
+    """Colors for node connectivity degrees."""
+
     default = '#FFFFFF'
     isolated = '#E5E5E5'
     root = '#BBEEFF'
@@ -108,6 +110,8 @@ def read_graph(path: str) -> gv.Source:
     """
     Read graph file.
 
+    Parameters
+    ----------
     path
         path to graph file to read
     """

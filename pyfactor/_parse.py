@@ -104,7 +104,7 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
         elif isinstance(n, _func_types + (ast.Lambda, ast.ClassDef)):
             recurse.append(n)
         else:
-            iterate[i+1:i+1] = list(ast.iter_child_nodes(n))
+            iterate[i + 1:i + 1] = list(ast.iter_child_nodes(n))
         i += 1
 
     inner_potential = set()
@@ -132,6 +132,8 @@ def _node_refs(node: ast.AST) -> Set[str]:
 
 
 class NodeType(Enum):
+    """Shorthands for node types."""
+
     var = 'V'
     func = 'F'
     class_ = 'C'
@@ -141,6 +143,8 @@ class NodeType(Enum):
 
 @dataclass
 class NodeInfo:
+    """Extra node information for creating labels."""
+
     type: NodeType
     lineno: int
 

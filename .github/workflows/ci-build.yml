@@ -1,6 +1,8 @@
 name: CI build
 on:
   push:
+    branches:
+      - master
     tags-ignore:
       - '*'
   pull_request:

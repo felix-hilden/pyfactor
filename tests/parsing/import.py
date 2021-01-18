@@ -49,4 +49,3 @@ class TestImport:
         source = 'import a\nb = a'
         refs = [({'a'}, set()), ({'b'}, {'a'})]
         return source, refs
-
