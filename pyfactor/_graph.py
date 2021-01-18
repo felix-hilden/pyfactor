@@ -60,7 +60,7 @@ def create_graph(
         for name in names:
             graph.add_node(
                 name,
-                label=f'{name}\n{info.type.value}:{info.lineno}',
+                label=f'{name.center(12, " ")}\n{info.type.value}:{info.lineno}',
                 shape=type_shape[info.type],
                 style='filled',
                 fillcolor='#FFFFFF'
