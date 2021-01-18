@@ -32,6 +32,8 @@ def _node_names(node: ast.AST) -> Set[str]:
     """Generate names that a node is referred to with."""
     if isinstance(node, ast.Assign):
         return _multi_union(_collect_names(t) for t in node.targets)
+    elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+        return _collect_names(node.target)
     elif isinstance(node, _func_types + (ast.ClassDef,)):
         return {node.name}
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -58,8 +60,10 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     iterate = []
     recurse = []
 
-    if isinstance(node, ast.Assign):
+    if isinstance(node, (ast.Assign, ast.AugAssign)):
         successors = [node.value]
+    elif isinstance(node, ast.AnnAssign):
+        successors = [node.annotation, node.value]
     elif isinstance(node, ast.Lambda):
         all_args = _collect_args(node.args)
         assigned.update(a.arg for a in all_args)

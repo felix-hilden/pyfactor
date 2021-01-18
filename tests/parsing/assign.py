@@ -43,3 +43,27 @@ class TestAssign:
         source = 'c = 1\na, b = (c, 2)'
         refs = [({'c'}, set()), ({'a', 'b'}, {'c'})]
         return source, refs
+
+    @refs_equal
+    def test_aug_assign_to_var(self):
+        source = 'a = 1\na += 1'
+        refs = [({'a'}, set()), ({'a'}, set())]
+        return source, refs
+
+    @refs_equal
+    def test_aug_assign_uses_var(self):
+        source = 'a = 1\nb = 1\nb += a'
+        refs = [({'a'}, set()), ({'b'}, set()), ({'b'}, {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_ann_assign_uses_var(self):
+        source = 'a = 1\nb: int = a'
+        refs = [({'a'}, set()), ({'b'}, {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_ann_assign_hint_uses_var(self):
+        source = 'a = int\nb: a = 1'
+        refs = [({'a'}, set()), ({'b'}, {'a'})]
+        return source, refs
