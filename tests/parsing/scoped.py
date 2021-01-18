@@ -21,6 +21,12 @@ class TestScoped:
         return source, refs
 
     @refs_equal
+    def test_async_function_uses_var(self):
+        source = 'b = 1\nasync def a():\n    return b'
+        refs = [({'b'}, set()), ({'a'}, {'b'})]
+        return source, refs
+
+    @refs_equal
     def test_var_in_func_shadows(self):
         source = 'a = 1\ndef foo():\n  a = 2'
         refs = [({'a'}, set()), ({'foo'}, set())]
@@ -204,6 +210,12 @@ class A:
     def test_classmethod_used(self):
         source = 'class A:\n  pass\na = A.meth()'
         refs = [({'A'}, set()), ({'a'}, {'A'})]
+        return source, refs
+
+    @refs_equal
+    def test_lambda_uses_var(self):
+        source = "a = 1\nb = lambda x: a"
+        refs = [({'a'}, set()), ({'b'}, {'a'})]
         return source, refs
 
     @refs_equal

@@ -25,11 +25,14 @@ def _collect_names(node: ast.AST) -> Set[str]:
     return names
 
 
+_func_types = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
 def _node_names(node: ast.AST) -> Set[str]:
     """Generate names that a node is referred to with."""
     if isinstance(node, ast.Assign):
         return _multi_union(_collect_names(t) for t in node.targets)
-    elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+    elif isinstance(node, _func_types + (ast.ClassDef,)):
         return {node.name}
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
         return {n.name if n.asname is None else n.asname for n in node.names}
@@ -61,7 +64,7 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
         all_args = _collect_args(node.args)
         assigned.update(a.arg for a in all_args)
         successors = [node.body]
-    elif isinstance(node, ast.FunctionDef):
+    elif isinstance(node, _func_types):
         all_args = _collect_args(node.args)
         assigned.update(a.arg for a in all_args)
         annotation_names = (
@@ -94,7 +97,7 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
             globaled.update(n.names)
         elif isinstance(n, ast.Nonlocal):
             nonlocaled.update(n.names)
-        elif isinstance(n, (ast.FunctionDef, ast.Lambda, ast.ClassDef)):
+        elif isinstance(n, _func_types + (ast.Lambda, ast.ClassDef)):
             recurse.append(n)
         else:
             iterate[i+1:i+1] = list(ast.iter_child_nodes(n))
@@ -142,7 +145,7 @@ def _node_info(node: ast.AST) -> NodeInfo:
     """Return format string for displaying a node."""
     if isinstance(node, ast.Assign):
         t = NodeType.var
-    elif isinstance(node, ast.FunctionDef):
+    elif isinstance(node, _func_types):
         t = NodeType.func
     elif isinstance(node, ast.ClassDef):
         t = NodeType.class_
