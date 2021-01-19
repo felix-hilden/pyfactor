@@ -1,4 +1,4 @@
-name: CI build
+name: CI
 on:
   push:
     branches:
@@ -8,11 +8,11 @@ on:
   pull_request:
 
 jobs:
-  environment:
+  matrix:
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
-    name: Python ${{matrix.python-version}}
+        python-version: [3.6, 3.7, 3.9]
+    name: Pytest on ${{matrix.python-version}}
     runs-on: ubuntu-latest
 
     steps:
@@ -21,6 +21,22 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{matrix.python-version}}
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[tests]
+      - name: Run test suite
+        run: pytest
+
+  full-build:
+    name: Full 3.8 build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
       - name: Install package
         run: |
           python -m pip install --upgrade pip
