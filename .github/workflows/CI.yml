@@ -30,15 +30,16 @@ jobs:
 
   full-build:
     name: Full 3.8 build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
           python-version: 3.8
-      - name: Install package
+      - name: Install package and graphviz
         run: |
+          sudo apt install graphviz
           python -m pip install --upgrade pip
           pip install .[dev]
       - name: Run tox environments

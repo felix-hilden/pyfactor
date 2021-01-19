@@ -1,5 +1,5 @@
-# See for more potential targets to ignore:
-# https://github.com/github/gitignore/blob/master/Python.gitignore
+# Package specific
+docs/src/gallery/
 
 # Python
 *.py[cod]

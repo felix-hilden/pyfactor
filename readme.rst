@@ -1,106 +1,109 @@
+========
 Pyfactor
 ========
-Script dependency visualisation of imports, variables, classes and functions.
+|build| |documentation|
 
-*Pyfactor* exists to make refactoring long scripts easier.
-This is achieved by graphing definitions and their dependencies.
-Such a graph could reveal collections of definitions or connection hubs
-that could be better off extracted to sub-modules,
-or design flaws in the form of too many interconnections.
-See `examples`_ for more.
+Welcome to the GitHub repository of *Pyfactor* - a refactoring tool
+that `visualises <rtd-gallery_>`_ Python source files as a graph of
+dependencies between Python constructs like variables, functions and classes.
 
-Installation
-------------
-A PyPI package is not yet available.
-In the meantime this repository can be cloned and installed via GitHub.
-For automatic updates when pulling, install an *editable* package as below.
+.. code:: sh
+
+    $ pyfactor --help
+    $ pyfactor script.py
+    $ pyfactor script.py --skip-imports --open
+
+See our `PyPI`_ page for installation instructions and package information.
+Visit our online documentation on `Read The Docs`_
+for reference documentation, examples and release notes.
+
+Contributing
+============
+New contributors are always welcome!
+If you've found a bug or would like to propose a feature,
+please submit an `issue <https://github.com/felix-hilden/pyfactor/issues>`_.
+If you'd like to get
+`more involved <https://opensource.guide/how-to-contribute/>`_,
+you can start by cloning the most recent version from GitHub
+and installing it as an editable package with development dependencies.
 
 .. code:: sh
 
    $ git clone https://github.com/felix-hilden/pyfactor
    $ cd pyfactor
-   $ pip install -e .
+   $ pip install -e .[dev]
 
-**Additionally**, `Graphviz <https://graphviz.org/>`_ (free graph visualisation
-software) must be installed, which is used for generating the visualisations.
-It is available for Linux, Windows and Mac.
-
-Usage
------
-*Pyfactor* is a command line tool.
-The most basic usage involves passing in a script,
-from which a graph file and a PDF visualisation is generated.
-See the help for details.
+For specialised uses, sets of extras can be installed separately.
+``tests`` installs dependencies related to executing tests,
+``docs`` is for building documentation locally,
+and ``checks`` contains ``tox`` and tools for static checking.
+The install can be verified by running all essential tasks with tox.
 
 .. code:: sh
 
-   $ pyfactor --help
-   $ pyfactor script.py
+    $ tox
 
-:code:`pyfactor.parse` and :code:`pyfactor.render`
-are exposed with similar arguments for importing and usage in code.
+Now tests have been run and documentation has been built.
+A list of all individual tasks can be viewed with their descriptions.
 
-Examples
---------
-Let's look at two (overly complicated) example Hello World scripts
-and the visualisations they produce.
+.. code:: sh
 
-.. code:: python
+    $ tox -a -v
 
-    greeting_format = 'Hello {}!'
-    recipient = 'World'
-
-    def make_greeting(target):
-        return greeting_format.format(target)
-
-    def display_factory(display_func):
-        def displayer(message):
-            display_func(message)
-        return displayer
-
-    display_message = display_factory(print)
-    greeting = make_greeting(recipient)
-    display_message(greeting)
-
-
-.. image:: docs/src/example_clean.png
-   :width: 400
-   :alt: clean example
-
-.. code:: python
-
-    greeting_format = 'Hello {}!'
-    recipient = 'World'
-
-    def attach_message(message, display):
-        if recipient.lower() == 'world':
-            return lambda to: (message.format(to), display)
-        else:
-            return lambda to: ('Message not available!', display)
-
-    def call_displayer_factory(message, display_func):
-        return lambda: display_func(message)
-
-    make_message_display = attach_message(greeting_format, print)
-    display_greeting = call_displayer_factory(*make_message_display(recipient))
-    display_greeting()
-
-.. image:: docs/src/example_dirty.png
-   :width: 400
-   :alt: messy example
-
-The first script is far superior with clear separation between
-generating the greeting and displaying it,
-while the latter script has no such structure.
+Please have a look at the following sections for additional information
+regarding specific tasks and configuration.
 
 Documentation
 -------------
-Online documentation on Read The Docs is on the way.
-Local documentation can be built with Sphinx.
-Optional development dependencies must be installed before building.
+Documentation can be built locally with Sphinx.
 
 .. code:: sh
 
-   $ pip install -e .[dev]
-   $ cd docs
-   $ make html
+    $ cd docs
+    $ make html
+
+The main page ``index.html`` can be found in ``build/html``.
+If tox is installed, this is equivalent to running ``tox -e docs``.
+
+Code style
+----------
+A set of code style rules is followed.
+To check for violations, run ``flake8``.
+
+.. code:: sh
+
+    $ flake8 pyfactor
+
+Style checks for docstrings and documentation files are also available.
+To run all style checks use ``tox -e lint``.
+
+Running tests
+-------------
+The repository contains a suite of test cases
+which can be studied and run to ensure the package works as intended.
+
+.. code:: sh
+
+    $ pytest
+
+For tox, this is the default command when running e.g. ``tox -e py``.
+To measure test coverage and view uncovered lines or branches run ``coverage``.
+
+.. code:: sh
+
+    $ coverage run
+    $ coverage report
+
+This can be achieved with tox by running ``tox -e coverage``.
+
+.. |build| image:: https://github.com/felix-hilden/pyfactor/workflows/CI/badge.svg
+   :target: https://github.com/felix-hilden/pyfactor/actions
+   :alt: build status
+
+.. |documentation| image:: https://rtfd.org/projects/pyfactor/badge/?version=latest
+   :target: https://pyfactor.rtfd.org/en/latest
+   :alt: documentation status
+
+.. _pypi: https://pypi.org/project/pyfactor
+.. _read the docs: https://pyfactor.rtfd.org
+.. _rtd-gallery: https://pyfactor.rtfd.org/en/stable/gallery.html

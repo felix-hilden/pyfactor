@@ -1,5 +1,9 @@
 import os
 import sys
+import textwrap
+
+import requests
+import pyfactor
 from pathlib import Path
 
 _root = Path(os.path.realpath(__file__)).parent.parent.parent
@@ -16,9 +20,68 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'sphinx_rtd_theme',
+    'sphinxarg.ext',
 ]
 
 master_doc = 'index'
 exclude_patterns = ['build']
 autosummary_generate = True
 html_theme = 'sphinx_rtd_theme'
+
+# ----- Generate gallery entries -----
+gallery_path = _root / 'docs' / 'src' / 'gallery'
+gallery_examples = [
+    'felix-hilden/pyfactor/522f3ee5/pyfactor/_parse.py',
+    'pydot/pydot/5c9b2ce7/pydot.py',
+    'psf/black/692c0f50/src/black/__init__.py',
+    'agronholm/sphinx-autodoc-typehints/2fac99f4/sphinx_autodoc_typehints.py',
+]
+
+
+def gallery_doc(name: str, url: str) -> str:
+    """Generate gallery docs from template."""
+    summary = f'This example was generated from `{name} source <{url}>`_'
+    summary = '\n'.join(textwrap.wrap(summary, width=79))
+    return f""".. _gallery-{name}:
+
+{name}
+{'=' * len(name)}
+{summary}
+with :code:`pyfactor source.py --format png --skip-imports`.
+Click the image to enlarge.
+
+.. image:: {name}.png
+   :target: ../_images/{name}.png
+   :alt: {name} visualisation
+"""
+
+
+# Generate legend
+legend_path = gallery_path / 'legend'
+source = pyfactor.create_legend()
+pyfactor.render(source, str(legend_path), format='png')
+
+# Generate examples
+gallery_path.mkdir(exist_ok=True)
+for example in gallery_examples:
+    print('Generating gallery example:', example)
+    raw_url = 'https://raw.githubusercontent.com/' + example
+    url_parts = example.split('/')
+    url_parts.insert(2, 'blob')
+    ui_url = 'https://github.com/' + '/'.join(url_parts)
+    repository_name = url_parts[1]
+
+    source_text = requests.get(raw_url).text
+    doc_text = gallery_doc(repository_name, ui_url)
+
+    source_path = gallery_path / (repository_name + '.py')
+    doc_path = source_path.with_suffix('.rst')
+    graph_path = source_path.with_suffix('.gv')
+    image_path = source_path.with_suffix('')
+
+    source_path.write_text(source_text, encoding='utf-8')
+    doc_path.write_text(doc_text, encoding='utf-8')
+
+    pyfactor.parse(str(source_path), str(graph_path), skip_imports=True)
+    source = pyfactor.read_graph(str(graph_path))
+    pyfactor.render(source, str(image_path), format='png')

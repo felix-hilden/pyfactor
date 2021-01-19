@@ -4,17 +4,18 @@ from pathlib import Path
 
 root = Path(os.path.realpath(__file__)).parent
 version_file = root / 'pyfactor' / 'VERSION'
-readme_file = root / 'readme.rst'
+readme_file = root / 'readme-pypi.rst'
 
 pypi_url = 'https://pypi.org/project/pyfactor'
 github_url = 'https://github.com/felix-hilden/pyfactor'
-documentation_url = github_url
+documentation_url = 'https://pyfactor.rtfd.org'
 
 extras_require = {
     'docs': [
         'sphinx',
         'sphinx-rtd-theme',
-        'sphinx-autodoc-typehints'
+        'sphinx-autodoc-typehints',
+        'sphinx-argparse',
     ],
     'tests': [
         'coverage',
@@ -73,5 +74,15 @@ setuptools.setup(
     ],
     extras_require=extras_require,
 
-    classifiers=[],
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3 :: Only',
+    ],
 )
