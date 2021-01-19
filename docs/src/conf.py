@@ -1,6 +1,7 @@
 import os
 import sys
 import textwrap
+import subprocess
 
 import requests
 import pyfactor
@@ -32,9 +33,10 @@ html_theme = 'sphinx_rtd_theme'
 gallery_path = _root / 'docs' / 'src' / 'gallery'
 gallery_examples = [
     'felix-hilden/pyfactor/522f3ee5/pyfactor/_parse.py',
-    'pydot/pydot/5c9b2ce7/pydot.py',
+    'PyCQA/flake8/6de8252c/src/flake8/style_guide.py',
     'psf/black/692c0f50/src/black/__init__.py',
     'agronholm/sphinx-autodoc-typehints/2fac99f4/sphinx_autodoc_typehints.py',
+    'pytest-dev/pytest/d5df8f99/src/_pytest/python.py',
 ]
 
 
@@ -55,6 +57,11 @@ Click the image to enlarge.
    :alt: {name} visualisation
 """
 
+
+# Hack for RTD: install Graphviz
+if os.environ.get('PYFACTOR_RTD_BUILD', False):
+    install_proc = subprocess.run(['apt', 'install', 'graphviz'])
+    setup_proc = subprocess.run(['dot', '-c'])
 
 # Generate legend
 legend_path = gallery_path / 'legend'
