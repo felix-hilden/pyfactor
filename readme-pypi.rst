@@ -28,8 +28,8 @@ Installation
 
 **Additionally**, *Pyfactor* depends on a free graph visualisation software
 `Graphviz <https://graphviz.org/>`_, available for Linux, Windows and Mac.
-See also the documentation of the `graphviz <https://graphviz.readthedocs.io/
-en/stable/#installation>`_ Python package for more help.
+See also the documentation of the `Graphviz Python package
+<https://graphviz.readthedocs.io/en/stable/#installation>`_ for more help.
 
 Release notes
 =============
