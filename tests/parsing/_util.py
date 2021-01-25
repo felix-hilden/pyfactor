@@ -1,5 +1,5 @@
 from functools import wraps
-from pyfactor import parse_refs
+from pyfactor._parse import parse_refs
 
 
 def refs_equal(func):

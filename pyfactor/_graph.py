@@ -101,21 +101,27 @@ def create_graph(
     return graph
 
 
-def write_graph(graph: nx.DiGraph, path: str) -> None:
-    """Write NetworkX graph to Graphviz graph file."""
-    nx.nx_pydot.write_dot(graph, path)
-
-
-def read_graph(path: str) -> gv.Source:
+def preprocess(
+    source: gv.Source,
+    stagger: int = None,
+    fanout: bool = False,
+    chain: int = None,
+) -> gv.Source:
     """
-    Read graph file.
+    Preprocess source for rendering.
 
     Parameters
     ----------
-    path
-        path to graph file to read
+    source
+        Graphviz source to preprocess
+    stagger
+        maximum Graphviz unflatten stagger
+    fanout
+        enable Graphviz unflatten fanout
+    chain
+        maximum Graphviz unflatten chain
     """
-    return gv.Source.from_file(path)
+    return source.unflatten(stagger=stagger, fanout=fanout, chain=chain)
 
 
 def render(
@@ -128,7 +134,7 @@ def render(
     view: bool = False,
 ) -> None:
     """
-    Read graph file and render with Graphviz.
+    Render source with Graphviz.
 
     Parameters
     ----------

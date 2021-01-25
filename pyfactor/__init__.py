@@ -1,7 +1,7 @@
 """
 Script dependency visualisation.
 
-See Readme file on `GitHub <https://github.com/felix-hilden/pyfactor>`_.
+See online documentation on `RTD <https://pyfactor.rtfd.org>`_.
 """
 import os as _os
 from sys import stderr as _stderr
@@ -10,9 +10,8 @@ from pathlib import Path as _Path
 _version_file = _Path(_os.path.realpath(__file__)).parent / 'VERSION'
 __version__ = _version_file.read_text().strip()
 
-from ._cli import parser as _parser
-from ._graph import create_graph, write_graph, read_graph, render, create_legend
-from ._parse import read_source, parse_refs
+from . import _cli, _parse, _graph, _io
+from ._graph import create_legend, preprocess, render
 
 
 def parse(
@@ -32,49 +31,118 @@ def parse(
     skip_imports
         do not visualise imports (reducing clutter)
     """
-    source = read_source(source_path)
-    references, infos = parse_refs(source, skip_imports)
-    graph = create_graph(references, infos)
-    write_graph(graph, graph_path)
+    source = _io.read_source(source_path)
+    references, infos = _parse.parse_refs(source, skip_imports)
+    graph = _graph.create_graph(references, infos)
+    _io.write_graph(graph, graph_path)
+
+
+def legend(path: str, preprocess_kwargs: dict, render_kwargs: dict) -> None:
+    """
+    Create and render a legend.
+
+    Parameters
+    ----------
+    path
+        legend image file
+    preprocess_kwargs
+        keyword arguments for :func:`preprocess`
+    render_kwargs
+        keyword arguments for :func:`render`
+    """
+    source = create_legend()
+    source = preprocess(source, **preprocess_kwargs)
+    render(source, path, **render_kwargs)
+
+
+def pyfactor(
+    source_path: str = None,
+    graph_path: str = None,
+    render_path: str = None,
+    parse_kwargs: dict = None,
+    preprocess_kwargs: dict = None,
+    render_kwargs: dict = None,
+) -> None:
+    """
+    Pyfactor Python endpoint.
+
+    See the command line help for more information.
+
+    Parameters
+    ----------
+    source_path
+        Python source file
+    graph_path
+        graph definition file
+    render_path
+        image file
+    parse_kwargs
+        keyword arguments for :func:`parse`
+    preprocess_kwargs
+        keyword arguments for :func:`preprocess`
+    render_kwargs
+        keyword arguments for :func:`render`
+    """
+    parse_kwargs = parse_kwargs or {}
+    preprocess_kwargs = preprocess_kwargs or {}
+    render_kwargs = render_kwargs or {}
+
+    graph_temp = graph_path or str(_Path(source_path).with_suffix('.gv'))
+
+    if source_path is not None:
+        parse(source_path, graph_temp, **parse_kwargs)
+
+    if render_path is not None:
+        source = _io.read_graph(graph_temp)
+        source = preprocess(source, **preprocess_kwargs)
+        render(source, render_path, **render_kwargs)
+
+        if graph_path is None:
+            _Path(graph_temp).unlink()
 
 
 def main() -> None:
     """Pyfactor CLI endpoint."""
-    args = _parser.parse_args()
+    args = _cli.parser.parse_args()
 
     if args.version:
         print(f'Pyfactor v.{__version__}', file=_stderr)
         exit(0)
 
-    if args.legend is not None:
-        graph_content = create_legend()
-        render(graph_content, args.legend, view=args.open, format=args.format)
-
-    if args.source is None:
+    if args.names is None:
         if args.legend is None:
-            _parser.print_help(_stderr)
+            _cli.parser.print_help(_stderr)
         exit(1)
 
-    if not args.graph_source:
-        if isinstance(args.graph_output, str):
-            graph_path = args.graph_source
-        else:
-            graph_path = str(_Path(args.source).with_suffix('.gv'))
-        parse(args.source, graph_path, skip_imports=args.skip_imports)
-    else:
-        graph_path = args.source
+    try:
+        source_path, graph_path, render_path = _cli.parse_names(args.names)
+    except _cli.ArgumentError as e:
+        print(str(e), file=_stderr)
+        exit(1)
 
-    if not args.no_output:
-        if args.output is None:
-            out_path = str(_Path(args.source).with_suffix(''))
-        else:
-            out_path = args.output
+    parse_kwargs = {
+        'skip_imports': args.skip_imports,
+    }
+    preprocess_kwargs = {
+        'stagger': args.stagger,
+        'fanout': not args.no_fanout,
+        'chain': args.chain,
+    }
+    render_kwargs = {
+        'view': args.view,
+        'format': args.format,
+        'renderer': args.renderer,
+        'formatter': args.formatter,
+    }
 
-        graph_content = read_graph(graph_path)
-        render(graph_content, out_path, view=args.open, format=args.format)
+    if args.legend:
+        legend(args.legend, preprocess_kwargs, render_kwargs)
 
-        if not args.graph_output:
-            try:
-                _Path(graph_path).unlink()
-            except FileNotFoundError:
-                pass
+    pyfactor(
+        source_path,
+        graph_path,
+        render_path,
+        parse_kwargs,
+        preprocess_kwargs,
+        render_kwargs,
+    )

@@ -11,7 +11,7 @@ dependencies between Python constructs like variables, functions and classes.
 
     $ pyfactor --help
     $ pyfactor script.py
-    $ pyfactor script.py --skip-imports --open
+    $ pyfactor script.py --skip-imports --view
 
 See our `PyPI`_ page for installation instructions and package information.
 Visit our online documentation on `Read The Docs`_

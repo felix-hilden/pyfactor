@@ -1,60 +1,105 @@
-from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from argparse import ArgumentParser
+from pathlib import Path
 
 parser = ArgumentParser(
-    allow_abbrev=False,
-    formatter_class=RawDescriptionHelpFormatter,
-    description=(
-        'Script dependency visualiser.\n\n'
-        'Use cases:\n'
-        '- pyfactor SOURCE      Read source file and render graph\n'
-        '- pyfactor -g SOURCE   Read graph file and render\n'
-        '- pyfactor SOURCE -go  Read source file, generate graph file and render\n'
-        '- pyfactor SOURCE -no  Read source file, only generating graph file\n'
-    ),
+    allow_abbrev=False, description='Script dependency visualiser.'
 )
 
 group_mode = parser.add_argument_group('Source and output')
-group_mode.add_argument('source', nargs='?', default=None, help=(
-    'Python source or graph file (note: use --graph-source with graphs)'
-))
-group_mode.add_argument('--graph-source', '-g', action='store_true', help=(
-    'SOURCE is interpreted as a graph file'
-))
-group_mode.add_argument('--output', '-o', help=(
-    'render output file name (default: generated from source file, '
-    'note: --format is appended to the file name)'
+group_mode.add_argument('names', nargs='?', default=None, help=(
+    'a colon-delimited sequence of file names source:graph:render. '
+    'Hyphens (-) DISABLE input/output (e.g. do not write a graph: s:-:r). '
+    'If source is disabled, graph is used as the only input instead. '
+    'Disabling two or more components will return with an error code 1. '
+    'Empty graph and render names (e.g. s::) are INFERRED from source and graph, '
+    'respectively. Source must never be empty. '
+    'Several SHORTCUTS are possible by omitting components: '
+    's = s:-:, s:r = s:-:r, -:g = -:g:, s:- = s::-'
 ))
 group_mode.add_argument('--format', '-f', default='pdf', help=(
-    'render file format (default: %(default)s)'
-))
-group_mode.add_argument(
-    '--graph-output', '-go', nargs='?', default=None, const=True, help=(
-        'also write intermediate graph file '
-        '(note: if no value is given, name is generated from source file)'
-    )
-)
-group_mode.add_argument('--no-output', '-no', action='store_true', help=(
-    'do not generate render output (note: writes a graph file, checking '
-    '--graph-output for a potential file name)'
+    'render file format, appended to all render file names (default: %(default)s)'
 ))
 group_mode.add_argument(
     '--legend', '-l', nargs='?', default=None, const='pyfactor-legend', help=(
-        'render a legend (default: %(const)s)'
+        'render a legend, optionally specify a file name (default: %(const)s)'
     )
+)
+
+group_parse = parser.add_argument_group('Parsing options')
+group_parse.add_argument(
+    '--skip-imports', '-si', action='store_true', help='do not visualise imports'
 )
 
 group_graph = parser.add_argument_group('Graph appearance')
 group_graph.add_argument(
-    '--skip-imports', '-si', action='store_true', help='do not visualise imports'
+    '--stagger', '-gs', type=int, default=2, help='max Graphviz unflatten stagger'
+)
+group_graph.add_argument(
+    '--no-fanout', '-gnf', action='store_true', help=(
+        'disable Graphviz unflatten fanout'
+    )
+)
+group_graph.add_argument(
+    '--chain', '-gc', type=int, default=1, help='max Graphviz unflatten chain'
 )
 group_graph.add_argument('--engine', '-ge', help='Graphviz layout engine')
-group_graph.add_argument('--renderer', '-gr', help='Graphviz output renderer')
-group_graph.add_argument('--formatter', '-gf', help='Graphviz output formatter')
 
 group_misc = parser.add_argument_group('Miscellaneous options')
-group_misc.add_argument('--open', action='store_true', help=(
+group_misc.add_argument('--view', action='store_true', help=(
     'open result in default application after rendering'
 ))
 group_misc.add_argument(
+    '--renderer', '-or', help='Graphviz output renderer'
+)
+group_misc.add_argument(
+    '--formatter', '-of', help='Graphviz output formatter'
+)
+group_misc.add_argument(
     '--version', '-v', action='store_true', help='display version number and exit'
 )
+
+
+class ArgumentError(RuntimeError):
+    """Invalid command line arguments given."""
+
+
+def parse_names(names):
+    """Parse file names from arguments."""
+    split = names.split(':')
+
+    if sum(s == '-' for s in split) > 1:
+        raise ArgumentError(f'Pyfactor: too many disabled names in `{names}`!')
+    if split[0] == '' or (split[0] == '-' and split[1] == ''):
+        raise ArgumentError(f'Pyfactor: cannot infer names from `{names}`!')
+    if len(split) > 3:
+        raise ArgumentError(f'Pyfactor: too many names in `{names}`!')
+
+    # Expand to three components
+    if len(split) == 1:
+        split += ['-', '']
+    if len(split) == 2:
+        if split[0] == '-':
+            split += ['']
+        elif split[1] == '-':
+            split.insert(1, '')
+        else:
+            split.insert(1, '-')
+
+    # Parse components
+    if split[0] == '-':
+        g = Path(split[1])
+        r = Path(split[2]) if split[2] else g.with_suffix('')
+        return None, g, r
+    elif split[1] == '-':
+        s = Path(split[0])
+        r = Path(split[2]) if split[2] else s.with_suffix('')
+        return s, None, r
+    elif split[2] == '-':
+        s = Path(split[0])
+        g = Path(split[1]) if split[1] else s.with_suffix('.gv')
+        return s, g, None
+    else:
+        s = Path(split[0])
+        g = Path(split[1]) if split[1] else s.with_suffix('.gv')
+        r = Path(split[2]) if split[2] else g.with_suffix('')
+        return s, g, r

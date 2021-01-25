@@ -2,13 +2,7 @@ import ast
 
 from enum import Enum
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Set, List, Tuple, Generator, Iterable
-
-
-def read_source(path: str) -> str:
-    """Read Python source code with 'utf-8' encoding."""
-    return Path(path).read_text(encoding='utf-8')
 
 
 def _multi_union(sets: Iterable[Set]) -> Set:

@@ -65,8 +65,7 @@ if os.environ.get('PYFACTOR_RTD_BUILD', False):
 
 # Generate legend
 legend_path = gallery_path / 'legend'
-source = pyfactor.create_legend()
-pyfactor.render(source, str(legend_path), format='png')
+pyfactor.legend(str(legend_path), {'chain': 1}, {'format': 'png'})
 
 # Generate examples
 gallery_path.mkdir(exist_ok=True)
@@ -83,12 +82,14 @@ for example in gallery_examples:
 
     source_path = gallery_path / (repository_name + '.py')
     doc_path = source_path.with_suffix('.rst')
-    graph_path = source_path.with_suffix('.gv')
     image_path = source_path.with_suffix('')
 
     source_path.write_text(source_text, encoding='utf-8')
     doc_path.write_text(doc_text, encoding='utf-8')
 
-    pyfactor.parse(str(source_path), str(graph_path), skip_imports=True)
-    source = pyfactor.read_graph(str(graph_path))
-    pyfactor.render(source, str(image_path), format='png')
+    pyfactor.pyfactor(
+        str(source_path), None, str(image_path),
+        parse_kwargs={'skip_imports': True},
+        preprocess_kwargs={'stagger': 2, 'fanout': True, 'chain': 1},
+        render_kwargs={'format': 'png'},
+    )
