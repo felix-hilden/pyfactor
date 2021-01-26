@@ -3,7 +3,7 @@ Pyfactor
 ========
 |python|
 
-Welcome to the GitHub repository of *Pyfactor* - a refactoring tool
+Welcome to the PyPI page of *Pyfactor* - a refactoring tool
 that `visualises <rtd-gallery_>`_ Python source files as a graph of
 dependencies between Python constructs like variables, functions and classes.
 
