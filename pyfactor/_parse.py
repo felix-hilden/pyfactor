@@ -145,7 +145,7 @@ class NodeInfo:
 
 def _node_info(node: ast.AST) -> NodeInfo:
     """Return format string for displaying a node."""
-    if isinstance(node, ast.Assign):
+    if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
         t = NodeType.var
     elif isinstance(node, _func_types):
         t = NodeType.func
