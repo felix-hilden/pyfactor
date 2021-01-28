@@ -5,6 +5,7 @@ See online documentation on `RTD <https://pyfactor.rtfd.org>`_.
 """
 import os as _os
 from sys import stderr as _stderr
+from typing import List as _List
 from pathlib import Path as _Path
 
 _version_file = _Path(_os.path.realpath(__file__)).parent / 'VERSION'
@@ -18,6 +19,7 @@ def parse(
     source_path: str,
     graph_path: str,
     skip_imports: bool = False,
+    exclude: _List[str] = None,
 ) -> None:
     """
     Parse source and create graph file.
@@ -30,10 +32,16 @@ def parse(
         path to graph file to write
     skip_imports
         do not visualise imports (reducing clutter)
+    exclude
+        exclude nodes in the graph
     """
     source = _io.read_source(source_path)
-    references, infos = _parse.parse_refs(source, skip_imports)
-    graph = _graph.create_graph(references, infos)
+    nodes = _parse.parse_refs(source)
+    graph = _graph.create_graph(
+        nodes,
+        skip_imports=skip_imports,
+        exclude=exclude,
+    )
     _io.write_graph(graph, graph_path)
 
 
@@ -122,6 +130,7 @@ def main() -> None:
 
     parse_kwargs = {
         'skip_imports': args.skip_imports,
+        'exclude': args.exclude,
     }
     preprocess_kwargs = {
         'stagger': args.stagger,

@@ -29,6 +29,9 @@ group_parse = parser.add_argument_group('Parsing options')
 group_parse.add_argument(
     '--skip-imports', '-si', action='store_true', help='do not visualise imports'
 )
+group_parse.add_argument(
+    '--exclude', '-e', action='append', help='exclude nodes in the source'
+)
 
 group_graph = parser.add_argument_group('Graph appearance')
 group_graph.add_argument(

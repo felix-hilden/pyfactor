@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from typing import Set, List, Tuple, Generator, Iterable
 
 
-def _multi_union(sets: Iterable[Set]) -> Set:
+def multi_union(sets: Iterable[Set]) -> Set:
     """Union of multiple sets."""
     return set().union(*sets)
 
 
-def _collect_names(node: ast.AST) -> Set[str]:
+def collect_names(node: ast.AST) -> Set[str]:
     """Naively collect all names that a node has as children."""
     names = set()
     for n in ast.walk(node):
@@ -22,12 +22,12 @@ def _collect_names(node: ast.AST) -> Set[str]:
 _func_types = (ast.FunctionDef, ast.AsyncFunctionDef)
 
 
-def _node_names(node: ast.AST) -> Set[str]:
+def node_names(node: ast.AST) -> Set[str]:
     """Generate names that a node is referred to with."""
     if isinstance(node, ast.Assign):
-        return _multi_union(_collect_names(t) for t in node.targets)
+        return multi_union(collect_names(t) for t in node.targets)
     elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
-        return _collect_names(node.target)
+        return collect_names(node.target)
     elif isinstance(node, _func_types + (ast.ClassDef,)):
         return {node.name}
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -36,14 +36,14 @@ def _node_names(node: ast.AST) -> Set[str]:
         return set()
 
 
-def _collect_args(args: ast.arguments):
+def collect_args(args: ast.arguments):
     """Collect function arguments."""
     all_args = args.args + args.kwonlyargs
     all_args += [args.vararg, args.kwarg]
     return [arg for arg in all_args if arg is not None]
 
 
-def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
+def _depends_on_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     """Generate names of children as (potential globals, sure globals)."""
     used = set()
     assigned = set()
@@ -59,27 +59,27 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     elif isinstance(node, ast.AnnAssign):
         successors = [node.annotation, node.value]
     elif isinstance(node, ast.Lambda):
-        all_args = _collect_args(node.args)
+        all_args = collect_args(node.args)
         assigned.update(a.arg for a in all_args)
         successors = [node.body]
     elif isinstance(node, _func_types):
-        all_args = _collect_args(node.args)
+        all_args = collect_args(node.args)
         assigned.update(a.arg for a in all_args)
         annotation_names = (
-            _collect_names(a.annotation)
+            collect_names(a.annotation)
             for a in all_args if a.annotation is not None
         )
-        globaled.update(_multi_union(annotation_names))
+        globaled.update(multi_union(annotation_names))
         fdef_sources = node.args.kw_defaults + node.args.defaults
         fdef_sources += node.decorator_list + [node.returns]
-        fdef_names = (_collect_names(d) for d in fdef_sources if d is not None)
-        globaled.update(_multi_union(fdef_names))
+        fdef_names = (collect_names(d) for d in fdef_sources if d is not None)
+        globaled.update(multi_union(fdef_names))
         successors = node.body
     elif isinstance(node, ast.ClassDef):
         cdef_sources = node.bases + node.keywords
         cdef_sources += node.decorator_list
-        cdef_names = (_collect_names(b) for b in cdef_sources)
-        globaled.update(_multi_union(cdef_names))
+        cdef_names = (collect_names(b) for b in cdef_sources)
+        globaled.update(multi_union(cdef_names))
         successors = node.body
     else:
         successors = list(ast.iter_child_nodes(node))
@@ -88,7 +88,7 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
 
     while i < len(iterate):
         n = iterate[i]
-        assigned.update(_node_names(n) - used)
+        assigned.update(node_names(n) - used)
         if isinstance(n, ast.Name):
             used.add(n.id)
         elif isinstance(n, ast.Global):
@@ -105,7 +105,7 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     inner_globaled = set()
 
     for n in recurse:
-        potential_, globaled_ = _node_refs_recursive(n)
+        potential_, globaled_ = _depends_on_recursive(n)
         inner_potential.update(potential_)
         inner_globaled.update(globaled_)
 
@@ -120,9 +120,9 @@ def _node_refs_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
     return from_outer_scopes, globaled | inner_globaled
 
 
-def _node_refs(node: ast.AST) -> Set[str]:
+def depends_on(node: ast.AST) -> Set[str]:
     """Generate all names that a node refers to."""
-    return _multi_union(_node_refs_recursive(node))
+    return multi_union(_depends_on_recursive(node))
 
 
 class NodeType(Enum):
@@ -137,52 +137,43 @@ class NodeType(Enum):
 
 @dataclass
 class NodeInfo:
-    """Extra node information for creating labels."""
+    """Source node information."""
 
+    defines: Set[str]
+    depends_on: Set[str]
     type: NodeType
     lineno: int
 
 
-def _node_info(node: ast.AST) -> NodeInfo:
+def _get_type(node: ast.AST) -> NodeType:
     """Return format string for displaying a node."""
     if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-        t = NodeType.var
+        return NodeType.var
     elif isinstance(node, _func_types):
-        t = NodeType.func
+        return NodeType.func
     elif isinstance(node, ast.ClassDef):
-        t = NodeType.class_
+        return NodeType.class_
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
-        t = NodeType.import_
+        return NodeType.import_
     else:
-        t = NodeType.unknown
-
-    return NodeInfo(t, node.lineno)
+        return NodeType.unknown
 
 
-def _top_nodes(
-    node: ast.AST,
-    skip_imports: bool = False
-) -> Generator[ast.AST, None, None]:
+def _top_nodes(node: ast.AST) -> Generator[ast.AST, None, None]:
     for n in ast.iter_child_nodes(node):
-        if skip_imports and isinstance(n, (ast.Import, ast.ImportFrom)):
-            continue
         yield n
 
 
 def parse_refs(
     source: str,
-    skip_imports: bool = False,
-) -> Tuple[List[Tuple[Set[str], Set[str]]], List[NodeInfo]]:
+) -> List[NodeInfo]:
     """Parse a reference array from source."""
     tree = ast.parse(source)
-    refs = [
-        (_node_names(node), _node_refs(node), _node_info(node))
-        for node in _top_nodes(tree, skip_imports)
+    nodes = [
+        NodeInfo(node_names(node), depends_on(node), _get_type(node), node.lineno)
+        for node in _top_nodes(tree)
     ]
-    refable_names = _multi_union(i[0] for i in refs)
-    ref_array = [
-        (ref[0], ref[1].intersection(refable_names))
-        for ref in refs
-    ]
-    disp_formats = [ref[2] for ref in refs]
-    return ref_array, disp_formats
+    defined_names = multi_union(n.defines for n in nodes)
+    for node in nodes:
+        node.depends_on = node.depends_on.intersection(defined_names)
+    return nodes

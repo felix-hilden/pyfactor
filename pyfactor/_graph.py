@@ -2,7 +2,7 @@ import networkx as nx
 import graphviz as gv
 
 from enum import Enum
-from typing import List, Tuple, Set
+from typing import List
 from ._parse import NodeInfo, NodeType
 
 
@@ -53,23 +53,33 @@ def create_legend() -> gv.Source:
 
 
 def create_graph(
-    references: List[Tuple[Set[str], Set[str]]],
-    infos: List[NodeInfo],
+    nodes: List[NodeInfo],
+    skip_imports: bool = False,
+    exclude: List[str] = None,
 ) -> nx.DiGraph:
     """Create and populate a graph from references."""
+    exclude = set(exclude or [])
     graph = nx.DiGraph()
-    for (names, refs), info in zip(references, infos):
-        for name in names:
+    for node in nodes:
+        for name in node.defines:
             graph.add_node(
                 name,
-                label=f'{name.center(12, " ")}\n{info.type.value}:{info.lineno}',
-                shape=type_shape[info.type],
+                label=f'{name.center(12, " ")}\n{node.type.value}:{node.lineno}',
+                shape=type_shape[node.type],
                 style='filled',
                 fillcolor='#FFFFFF'
             )
             graph.add_edges_from([
-                (name, ref) for ref in refs
+                (name, d) for d in node.depends_on
             ])
+
+    for node in nodes:
+        if skip_imports and node.type == NodeType.import_:
+            graph.remove_nodes_from(node.defines)
+        for name in node.defines:
+            if name in exclude:
+                graph.remove_node(name)
+
     in_degs = []
     out_degs = []
     for node in graph.nodes:
