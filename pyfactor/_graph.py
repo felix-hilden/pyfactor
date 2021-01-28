@@ -6,6 +6,12 @@ from typing import List
 from ._parse import NodeInfo, NodeType
 
 
+class MiscColor(Enum):
+    """Colors for miscellaneous attributes."""
+
+    bridge = '#990000'
+
+
 class ConnectivityColor(Enum):
     """Colors for node connectivity degrees."""
 
@@ -48,6 +54,9 @@ def create_legend() -> gv.Source:
             s.node(e.name, fillcolor=e.value)
         for deg, col in centrality_color.items():
             s.node(f'Centrality {deg}', fillcolor=col)
+        s.node('bridge1', label=' ')
+        s.node('bridge2', label=' ')
+        s.edge('bridge1', 'bridge2', label='bridge', color=MiscColor.bridge.value)
 
     return gv.Source(graph.source)
 
@@ -67,7 +76,6 @@ def create_graph(
                 label=f'{name.center(12, " ")}\n{node.type.value}:{node.lineno}',
                 shape=type_shape[node.type],
                 style='filled',
-                fillcolor='#FFFFFF'
             )
             graph.add_edges_from([
                 (name, d) for d in node.depends_on
@@ -108,6 +116,12 @@ def create_graph(
                 graph.nodes[node]['fillcolor'] = color
                 break
 
+    undirected = graph.to_undirected()
+    for from_, to in nx.bridges(undirected):
+        if graph.has_edge(from_, to):
+            graph.edges[from_, to]['color'] = MiscColor.bridge.value
+        if graph.has_edge(to, from_):
+            graph.edges[to, from_]['color'] = MiscColor.bridge.value
     return graph
 
 
