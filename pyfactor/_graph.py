@@ -2,7 +2,7 @@ import networkx as nx
 import graphviz as gv
 
 from enum import Enum
-from typing import List
+from typing import List, Dict
 from ._parse import NodeInfo, NodeType
 
 
@@ -65,21 +65,28 @@ def create_graph(
     nodes: List[NodeInfo],
     skip_imports: bool = False,
     exclude: List[str] = None,
+    graph_attrs: Dict[str, str] = None,
+    node_attrs: Dict[str, str] = None,
+    edge_attrs: Dict[str, str] = None,
 ) -> nx.DiGraph:
     """Create and populate a graph from references."""
     exclude = set(exclude or [])
-    graph = nx.DiGraph()
+    graph_attrs = graph_attrs or {}
+    node_attrs = node_attrs or {}
+    edge_attrs = edge_attrs or {}
+    graph = nx.DiGraph(**graph_attrs)
     for node in nodes:
         for name in node.defines:
-            graph.add_node(
-                name,
-                label=f'{name.center(12, " ")}\n{node.type.value}:{node.lineno}',
-                shape=type_shape[node.type],
-                style='filled',
-            )
+            attrs = {
+                'label': f'{name.center(12, " ")}\n{node.type.value}:{node.lineno}',
+                'shape': type_shape[node.type],
+                'style': 'filled',
+            }
+            node_attrs.update(attrs)
+            graph.add_node(name, **node_attrs)
             graph.add_edges_from([
                 (name, d) for d in node.depends_on
-            ])
+            ], **edge_attrs)
 
     for node in nodes:
         if skip_imports and node.type == NodeType.import_:

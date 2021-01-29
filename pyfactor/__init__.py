@@ -5,7 +5,7 @@ See online documentation on `RTD <https://pyfactor.rtfd.org>`_.
 """
 import os as _os
 from sys import stderr as _stderr
-from typing import List as _List
+from typing import List as _List, Dict as _Dict
 from pathlib import Path as _Path
 
 _version_file = _Path(_os.path.realpath(__file__)).parent / 'VERSION'
@@ -20,6 +20,9 @@ def parse(
     graph_path: str,
     skip_imports: bool = False,
     exclude: _List[str] = None,
+    graph_attrs: _Dict[str, str] = None,
+    node_attrs: _Dict[str, str] = None,
+    edge_attrs: _Dict[str, str] = None,
 ) -> None:
     """
     Parse source and create graph file.
@@ -34,6 +37,12 @@ def parse(
         do not visualise imports (reducing clutter)
     exclude
         exclude nodes in the graph
+    graph_attrs
+        Graphviz graph attributes (overrided by Pyfactor)
+    node_attrs
+        Graphviz node attributes (overrided by Pyfactor)
+    edge_attrs
+        Graphviz edge attributes (overrided by Pyfactor)
     """
     source = _io.read_source(source_path)
     nodes = _parse.parse_refs(source)
@@ -41,6 +50,9 @@ def parse(
         nodes,
         skip_imports=skip_imports,
         exclude=exclude,
+        graph_attrs=graph_attrs,
+        node_attrs=node_attrs,
+        edge_attrs=edge_attrs,
     )
     _io.write_graph(graph, graph_path)
 
@@ -109,6 +121,11 @@ def pyfactor(
             _Path(graph_temp).unlink()
 
 
+def _attrs_to_dict(attrs: _List[str] = None) -> _Dict[str, str]:
+    split = [attr.split(':', 1) for attr in attrs or []]
+    return {n: v for n, v in split}
+
+
 def main() -> None:
     """Pyfactor CLI endpoint."""
     args = _cli.parser.parse_args()
@@ -131,6 +148,9 @@ def main() -> None:
     parse_kwargs = {
         'skip_imports': args.skip_imports,
         'exclude': args.exclude,
+        'graph_attrs': _attrs_to_dict(args.graph_attr),
+        'node_attrs': _attrs_to_dict(args.node_attr),
+        'edge_attrs': _attrs_to_dict(args.edge_attr),
     }
     preprocess_kwargs = {
         'stagger': args.stagger,

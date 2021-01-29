@@ -90,6 +90,6 @@ for example in gallery_examples:
     pyfactor.pyfactor(
         str(source_path), None, str(image_path),
         parse_kwargs={'skip_imports': True},
-        preprocess_kwargs={'stagger': 2, 'fanout': True, 'chain': 1},
+        preprocess_kwargs={'stagger': 10, 'fanout': True, 'chain': 5},
         render_kwargs={'format': 'png'},
     )
