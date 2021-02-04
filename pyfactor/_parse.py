@@ -2,7 +2,7 @@ import ast
 
 from enum import Enum
 from dataclasses import dataclass
-from typing import Set, List, Tuple, Generator, Iterable
+from typing import Set, List, Tuple, Iterable, Optional
 
 
 def multi_union(sets: Iterable[Set]) -> Set:
@@ -22,18 +22,65 @@ def collect_names(node: ast.AST) -> Set[str]:
 _func_types = (ast.FunctionDef, ast.AsyncFunctionDef)
 
 
-def node_names(node: ast.AST) -> Set[str]:
-    """Generate names that a node is referred to with."""
+class NodeType(Enum):
+    """Shorthands for node types."""
+
+    var = 'V'
+    func = 'F'
+    class_ = 'C'
+    import_ = 'I'
+    unknown = '?'
+
+
+@dataclass
+class Node:
+    """Source node information."""
+
+    name: str
+    depends_on: set = None
+    type: NodeType = None
+    lineno: int = None
+
+    def __post_init__(self):
+        """Ensure depends_on is a set."""
+        self.depends_on = self.depends_on or set()
+
+
+def target_component_names(node: ast.AST) -> Optional[Node]:
+    """Generate name for an assign target component."""
+    if isinstance(node, ast.Name):
+        return Node(node.id)
+    elif isinstance(node, ast.Starred):
+        if isinstance(node.value, ast.Name):
+            return Node(node.value.id)
+
+
+def targets_names(targets: List[ast.AST]) -> List[Node]:
+    """Generate names for assign targets."""
+    target_list = []
+    for t in targets:
+        if isinstance(t, (ast.List, ast.Tuple)):
+            target_list.extend(t.elts)
+        else:
+            target_list.append(t)
+
+    comps = [target_component_names(t) for t in target_list]
+    return [n for n in comps if n is not None]
+
+
+def node_names(node: ast.AST) -> List[Node]:
+    """Generate names of a node and their extra dependencies."""
     if isinstance(node, ast.Assign):
-        return multi_union(collect_names(t) for t in node.targets)
+        return targets_names(node.targets)
     elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
-        return collect_names(node.target)
+        return targets_names([node.target])
     elif isinstance(node, _func_types + (ast.ClassDef,)):
-        return {node.name}
+        return [Node(node.name)]
     elif isinstance(node, (ast.Import, ast.ImportFrom)):
-        return {n.name if n.asname is None else n.asname for n in node.names}
+        names = [n.name if n.asname is None else n.asname for n in node.names]
+        return [Node(n) for n in names]
     else:
-        return set()
+        return []
 
 
 def collect_args(args: ast.arguments):
@@ -88,7 +135,8 @@ def _depends_on_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
 
     while i < len(iterate):
         n = iterate[i]
-        assigned.update(node_names(n) - used)
+        node_assigns = {d.name for d in node_names(n)}
+        assigned.update(node_assigns - used)
         if isinstance(n, ast.Name):
             used.add(n.id)
         elif isinstance(n, ast.Global):
@@ -125,27 +173,7 @@ def depends_on(node: ast.AST) -> Set[str]:
     return multi_union(_depends_on_recursive(node))
 
 
-class NodeType(Enum):
-    """Shorthands for node types."""
-
-    var = 'V'
-    func = 'F'
-    class_ = 'C'
-    import_ = 'I'
-    unknown = '?'
-
-
-@dataclass
-class NodeInfo:
-    """Source node information."""
-
-    defines: Set[str]
-    depends_on: Set[str]
-    type: NodeType
-    lineno: int
-
-
-def _get_type(node: ast.AST) -> NodeType:
+def get_type(node: ast.AST) -> NodeType:
     """Return format string for displaying a node."""
     if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
         return NodeType.var
@@ -159,21 +187,28 @@ def _get_type(node: ast.AST) -> NodeType:
         return NodeType.unknown
 
 
-def _top_nodes(node: ast.AST) -> Generator[ast.AST, None, None]:
-    for n in ast.iter_child_nodes(node):
-        yield n
+def parse_nodes(root: ast.AST) -> List[Node]:
+    """Generate nodes and information under root."""
+    nodes = []
+    for node in ast.iter_child_nodes(root):
+        new_nodes = node_names(node)
+        deps = depends_on(node)
+        n_type = get_type(node)
+        for n in new_nodes:
+            n.depends_on.update(deps)
+            n.type = n_type
+            n.lineno = node.lineno
+        nodes.extend(new_nodes)
+    return nodes
 
 
 def parse_refs(
     source: str,
-) -> List[NodeInfo]:
+) -> List[Node]:
     """Parse a reference array from source."""
     tree = ast.parse(source)
-    nodes = [
-        NodeInfo(node_names(node), depends_on(node), _get_type(node), node.lineno)
-        for node in _top_nodes(tree)
-    ]
-    defined_names = multi_union(n.defines for n in nodes)
+    nodes = parse_nodes(tree)
+    defined_names = {n.name for n in nodes}
     for node in nodes:
         node.depends_on = node.depends_on.intersection(defined_names)
     return nodes

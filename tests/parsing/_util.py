@@ -7,7 +7,8 @@ def refs_equal(func):
     def wrapper(self):
         source, expected = func(self)
         parsed = parse_refs(source)
-        for e, p in zip(expected, parsed):
-            assert p.defines == e[0], 'Mismatch in defines!'
-            assert p.depends_on == e[1], 'Mismatch in depends!'
+        assert len(parsed) == len(expected), 'Wrong number of nodes!'
+        for p, e in zip(parsed, expected):
+            assert p.name == e[0], f'Wrong name! Expected\n{e}\ngot\n{p}'
+            assert p.depends_on == e[1], f'Wrong deps! Expected\n{e}\ngot\n{p}'
     return wrapper

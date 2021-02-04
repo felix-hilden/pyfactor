@@ -3,7 +3,7 @@ import graphviz as gv
 
 from enum import Enum
 from typing import List, Dict
-from ._parse import NodeInfo, NodeType
+from ._parse import Node, NodeType
 
 
 class MiscColor(Enum):
@@ -63,7 +63,7 @@ def create_legend() -> gv.Source:
 
 
 def create_graph(
-    nodes: List[NodeInfo],
+    nodes: List[Node],
     skip_imports: bool = False,
     exclude: List[str] = None,
     graph_attrs: Dict[str, str] = None,
@@ -77,24 +77,22 @@ def create_graph(
     edge_attrs = edge_attrs or {}
     graph = nx.DiGraph(**graph_attrs)
     for node in nodes:
-        for name in node.defines:
-            attrs = {
-                'label': f'{name.center(12, " ")}\n{node.type.value}:{node.lineno}',
-                'shape': type_shape[node.type],
-                'style': 'filled',
-            }
-            node_attrs.update(attrs)
-            graph.add_node(node_prefix + name, **node_attrs)
-            graph.add_edges_from([
-                (node_prefix + name, node_prefix + d) for d in node.depends_on
-            ], **edge_attrs)
+        attrs = {
+            'label': f'{node.name.center(12, " ")}\n{node.type.value}:{node.lineno}',
+            'shape': type_shape[node.type],
+            'style': 'filled',
+        }
+        node_attrs.update(attrs)
+        graph.add_node(node_prefix + node.name, **node_attrs)
+        graph.add_edges_from([
+            (node_prefix + node.name, node_prefix + d) for d in node.depends_on
+        ], **edge_attrs)
 
     for node in nodes:
         if skip_imports and node.type == NodeType.import_:
-            graph.remove_nodes_from(node_prefix + d for d in node.defines)
-        for name in node.defines:
-            if name in exclude:
-                graph.remove_node(node_prefix + name)
+            graph.remove_node(node_prefix + node.name)
+        if node.name in exclude:
+            graph.remove_node(node_prefix + node.name)
 
     in_degs = []
     out_degs = []
