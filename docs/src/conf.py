@@ -33,6 +33,7 @@ html_theme = 'sphinx_rtd_theme'
 gallery_path = _root / 'docs' / 'src' / 'gallery'
 gallery_examples = [
     'felix-hilden/pyfactor/522f3ee5/pyfactor/_parse.py',
+    'pydot/pydot/5c9b2ce7/pydot.py',
     'PyCQA/flake8/6de8252c/src/flake8/style_guide.py',
     'psf/black/692c0f50/src/black/__init__.py',
     'agronholm/sphinx-autodoc-typehints/2fac99f4/sphinx_autodoc_typehints.py',

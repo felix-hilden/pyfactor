@@ -33,6 +33,7 @@ centrality_color = {
     0.95: '#FFA0A0',
     0.68: '#FFE0E0',
 }
+node_prefix = 'pf-'
 
 
 def create_legend() -> gv.Source:
@@ -83,17 +84,17 @@ def create_graph(
                 'style': 'filled',
             }
             node_attrs.update(attrs)
-            graph.add_node(name, **node_attrs)
+            graph.add_node(node_prefix + name, **node_attrs)
             graph.add_edges_from([
-                (name, d) for d in node.depends_on
+                (node_prefix + name, node_prefix + d) for d in node.depends_on
             ], **edge_attrs)
 
     for node in nodes:
         if skip_imports and node.type == NodeType.import_:
-            graph.remove_nodes_from(node.defines)
+            graph.remove_nodes_from(node_prefix + d for d in node.defines)
         for name in node.defines:
             if name in exclude:
-                graph.remove_node(name)
+                graph.remove_node(node_prefix + name)
 
     in_degs = []
     out_degs = []
