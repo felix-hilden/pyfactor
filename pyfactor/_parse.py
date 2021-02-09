@@ -20,6 +20,8 @@ def collect_names(node: ast.AST) -> Set[str]:
 
 
 _func_types = (ast.FunctionDef, ast.AsyncFunctionDef)
+_comprehension_types = (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)
+_scoped_types = _func_types + _comprehension_types + (ast.Lambda, ast.ClassDef)
 
 
 class NodeType(Enum):
@@ -128,6 +130,19 @@ def _depends_on_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
         cdef_names = (collect_names(b) for b in cdef_sources)
         globaled.update(multi_union(cdef_names))
         successors = node.body
+    elif isinstance(node, _comprehension_types):
+        for gen in node.generators:
+            iters = collect_names(gen.iter)
+            targets = collect_names(gen.target)
+            ifs = multi_union(collect_names(f) for f in gen.ifs)
+
+            globaled.update(iters - assigned)
+            assigned.update(targets)
+            globaled.update(ifs - assigned)
+        if isinstance(node, ast.DictComp):
+            successors = [node.key, node.value]
+        else:
+            successors = [node.elt]
     else:
         successors = list(ast.iter_child_nodes(node))
 
@@ -143,7 +158,7 @@ def _depends_on_recursive(node: ast.AST) -> Tuple[Set[str], Set[str]]:
             globaled.update(n.names)
         elif isinstance(n, ast.Nonlocal):
             nonlocaled.update(n.names)
-        elif isinstance(n, _func_types + (ast.Lambda, ast.ClassDef)):
+        elif isinstance(n, _scoped_types):
             recurse.append(n)
         else:
             iterate[i + 1:i + 1] = list(ast.iter_child_nodes(n))

@@ -239,3 +239,33 @@ def foo():
 """
         refs = [('a', set()), ('foo', set())]
         return source, refs
+
+    @refs_equal
+    def test_comprehension_body_uses_var(self):
+        source = "a = 1\nb = [a for _ in range(3)]"
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_comprehension_source_uses_var(self):
+        source = "a = 1\nb = [i for i in range(a)]"
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_comprehension_condition_uses_var(self):
+        source = "a = 1\nb = [i for i in range(3) if i > a]"
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_comprehension_shadows(self):
+        source = "a = 1\nb = [a for a in range(3)]"
+        refs = [('a', set()), ('b', set())]
+        return source, refs
+
+    @refs_equal
+    def test_comprehensions_shadow_and_use(self):
+        source = "a = 1\nb = [i for a in range(a) for i in range(a)]"
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
