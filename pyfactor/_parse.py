@@ -32,6 +32,7 @@ class NodeType(Enum):
     class_ = 'C'
     import_ = 'I'
     unknown = '?'
+    multiple = '+'
 
 
 @dataclass
@@ -41,7 +42,8 @@ class Node:
     name: str
     depends_on: set = None
     type: NodeType = None
-    lineno: int = None
+    lineno_str: str = None
+    is_definition: bool = True
 
     def __post_init__(self):
         """Ensure depends_on is a set."""
@@ -59,9 +61,12 @@ def target_component_names(node: ast.AST) -> Node:
         name = target_component_names(node.value)
         deps = collect_names(node.slice)
         name.depends_on = name.depends_on | deps
+        name.is_definition = False
         return name
     elif isinstance(node, ast.Attribute):
-        return target_component_names(node.value)
+        name = target_component_names(node.value)
+        name.is_definition = False
+        return name
     else:
         raise ValueError(
             f'Parsing error on line {node.lineno}: assignment type not recognised!'
@@ -222,7 +227,7 @@ def parse_nodes(root: ast.AST) -> List[Node]:
         for n in new_nodes:
             n.depends_on.update(deps)
             n.type = n_type
-            n.lineno = node.lineno
+            n.lineno_str = str(node.lineno)
         nodes.extend(new_nodes)
     return nodes
 

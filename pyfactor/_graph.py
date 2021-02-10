@@ -27,6 +27,7 @@ type_shape = {
     NodeType.class_: 'parallelogram',
     NodeType.import_: 'note',
     NodeType.unknown: 'ellipse',
+    NodeType.multiple: 'ellipse',
 }
 centrality_color = {
     0.997: '#FF3030',
@@ -62,6 +63,21 @@ def create_legend() -> gv.Source:
     return gv.Source(graph.source)
 
 
+def merge_nodes(nodes: List[Node]) -> List[Node]:
+    """Merge node definitions and dependencies."""
+    results = {}
+    for node in nodes:
+        if node.name in results:
+            n = results[node.name]
+            n.depends_on = n.depends_on | node.depends_on
+            if n.is_definition and node.is_definition and n.type != node.type:
+                n.type = NodeType.multiple
+            n.lineno_str += ',' + node.lineno_str
+        else:
+            results[node.name] = node
+    return list(results.values())
+
+
 def create_graph(
     nodes: List[Node],
     skip_imports: bool = False,
@@ -75,10 +91,12 @@ def create_graph(
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
+    nodes = merge_nodes(nodes)
     graph = nx.DiGraph(**graph_attrs)
     for node in nodes:
+        name = node.name.center(12, " ")
         attrs = {
-            'label': f'{node.name.center(12, " ")}\n{node.type.value}:{node.lineno}',
+            'label': f'{name}\n{node.type.value}:{node.lineno_str}',
             'shape': type_shape[node.type],
             'style': 'filled',
         }
