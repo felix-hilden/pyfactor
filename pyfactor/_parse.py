@@ -2,7 +2,7 @@ import ast
 
 from enum import Enum
 from dataclasses import dataclass
-from typing import Set, List, Tuple, Iterable, Optional
+from typing import Set, List, Tuple, Iterable
 
 
 def multi_union(sets: Iterable[Set]) -> Set:
@@ -48,13 +48,24 @@ class Node:
         self.depends_on = self.depends_on or set()
 
 
-def target_component_names(node: ast.AST) -> Optional[Node]:
+def target_component_names(node: ast.AST) -> Node:
     """Generate name for an assign target component."""
+    if isinstance(node, ast.Starred):
+        node = node.value
+
     if isinstance(node, ast.Name):
         return Node(node.id)
-    elif isinstance(node, ast.Starred):
-        if isinstance(node.value, ast.Name):
-            return Node(node.value.id)
+    elif isinstance(node, ast.Subscript):
+        name = target_component_names(node.value)
+        deps = collect_names(node.slice)
+        name.depends_on = name.depends_on | deps
+        return name
+    elif isinstance(node, ast.Attribute):
+        return target_component_names(node.value)
+    else:
+        raise ValueError(
+            f'Parsing error on line {node.lineno}: assignment type not recognised!'
+        )
 
 
 def targets_names(targets: List[ast.AST]) -> List[Node]:
@@ -66,8 +77,7 @@ def targets_names(targets: List[ast.AST]) -> List[Node]:
         else:
             target_list.append(t)
 
-    comps = [target_component_names(t) for t in target_list]
-    return [n for n in comps if n is not None]
+    return [target_component_names(t) for t in target_list]
 
 
 def node_names(node: ast.AST) -> List[Node]:

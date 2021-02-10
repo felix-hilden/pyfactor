@@ -67,3 +67,39 @@ class TestAssign:
         source = 'a = int\nb: a = 1'
         refs = [('a', set()), ('b', {'a'})]
         return source, refs
+
+    @refs_equal
+    def test_assign_to_attribute(self):
+        source = 'a = 1\nb = 2\na.b = 2'
+        refs = [('a', set()), ('b', set()), ('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_assign_var_to_attribute(self):
+        source = 'a = 1\nb = 2\na.attr = b'
+        refs = [('a', set()), ('b', set()), ('a', {'b'})]
+        return source, refs
+
+    @refs_equal
+    def test_assign_var_to_subscript(self):
+        source = 'a = [0, 1]\nb = 1\na[0] = b'
+        refs = [('a', set()), ('b', set()), ('a', {'b'})]
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_subscript_with_var(self):
+        source = 'a = [0, 1]\nb = 1\na[b] = 1'
+        refs = [('a', set()), ('b', set()), ('a', {'b'})]
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_subscript_attribute(self):
+        source = 'a = 0\nb = 1\na[b].c = 1'
+        refs = [('a', set()), ('b', set()), ('a', {'b'})]
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_attribute_subscript(self):
+        source = 'a = 0\nb = 1\na.c[b] = 1'
+        refs = [('a', set()), ('b', set()), ('a', {'b'})]
+        return source, refs
