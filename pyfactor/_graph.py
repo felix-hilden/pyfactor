@@ -44,10 +44,16 @@ def create_legend() -> gv.Source:
     with graph.subgraph(name='cluster1') as s:
         s.attr(label='Types')
         s.node_attr.update(style='filled', fillcolor='#FFFFFF')
-        s.node('variable', shape=type_shape[NodeType.var])
-        s.node('function', shape=type_shape[NodeType.func])
-        s.node('class', shape=type_shape[NodeType.class_])
-        s.node('import', shape=type_shape[NodeType.import_])
+        types = [
+            ('variable', NodeType.var),
+            ('function', NodeType.func),
+            ('class', NodeType.class_),
+            ('import', NodeType.import_),
+            ('unknown', NodeType.unknown),
+            ('multiple', NodeType.multiple),
+        ]
+        for name, t in types:
+            s.node(f'{name} ({t.value})', shape=type_shape[t])
 
     with graph.subgraph(name='cluster2') as s:
         s.attr(label='Colours')
@@ -56,6 +62,9 @@ def create_legend() -> gv.Source:
             s.node(e.name, fillcolor=e.value)
         for deg, col in centrality_color.items():
             s.node(f'Centrality {deg}', fillcolor=col)
+        s.node('conn1', label=' ')
+        s.node('conn2', label=' ')
+        s.edge('conn1', 'conn2', label='dependency')
         s.node('bridge1', label=' ')
         s.node('bridge2', label=' ')
         s.edge('bridge1', 'bridge2', label='bridge', color=MiscColor.bridge.value)

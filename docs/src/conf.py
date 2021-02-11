@@ -66,7 +66,7 @@ if os.environ.get('PYFACTOR_RTD_BUILD', False):
 
 # Generate legend
 legend_path = gallery_path / 'legend'
-pyfactor.legend(str(legend_path), {'chain': 1}, {'format': 'png'})
+pyfactor.legend(str(legend_path), {'chain': 2}, {'format': 'png'})
 
 # Generate examples
 gallery_path.mkdir(exist_ok=True)
