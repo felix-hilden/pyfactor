@@ -11,7 +11,7 @@ from pathlib import Path as _Path
 _version_file = _Path(_os.path.realpath(__file__)).parent / 'VERSION'
 __version__ = _version_file.read_text().strip()
 
-from . import _cli, _parse, _graph, _io
+from . import _cli, _visit, _graph, _io
 from ._graph import create_legend, preprocess, render
 
 
@@ -45,9 +45,9 @@ def parse(
         Graphviz edge attributes (overrided by Pyfactor)
     """
     source = _io.read_source(source_path)
-    nodes = _parse.parse_refs(source)
+    lines = _visit.parse_lines(source)
     graph = _graph.create_graph(
-        nodes,
+        lines,
         skip_imports=skip_imports,
         exclude=exclude,
         graph_attrs=graph_attrs,

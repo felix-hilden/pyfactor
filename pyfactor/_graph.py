@@ -1,9 +1,72 @@
+import ast
+
 import networkx as nx
 import graphviz as gv
 
+from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict
-from ._parse import Node, NodeType
+from typing import List, Dict, Set
+from ._visit import Line
+
+
+class NodeType(Enum):
+    """Shorthands for node types."""
+
+    var = 'V'
+    func = 'F'
+    class_ = 'C'
+    import_ = 'I'
+    unknown = '?'
+    multiple = '+'
+
+
+def get_type(node: ast.AST) -> NodeType:
+    """Determine general type of AST node."""
+    if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return NodeType.var
+    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return NodeType.func
+    elif isinstance(node, ast.ClassDef):
+        return NodeType.class_
+    elif isinstance(node, (ast.Import, ast.ImportFrom)):
+        return NodeType.import_
+    else:
+        return NodeType.unknown
+
+
+@dataclass
+class GraphNode:
+    name: str
+    deps: Set[str]
+    type: NodeType
+    lineno_str: str
+
+
+def merge_nodes(lines: List[Line]) -> List[GraphNode]:
+    """Merge name definitions and references on lines to unique graph nodes."""
+    nodes = {}
+    for line in lines:
+        for name in line.names:
+            node = GraphNode(
+                name.name,
+                name.deps,
+                get_type(line.ast_node),
+                str(line.ast_node.lineno),
+            )
+            if node.name not in nodes:
+                nodes[node.name] = [node, name.is_definition]
+            else:
+                merge = nodes[node.name][0]
+                was_defined = nodes[node.name][1]
+
+                merge.deps = merge.deps | node.deps
+                merge.lineno_str += ',' + node.lineno_str
+                if merge.type != node.type and name.is_definition and was_defined:
+                    merge.type = NodeType.multiple
+                if name.is_definition:
+                    nodes[node.name][1] = True
+
+    return [node for node, _ in nodes.values()]
 
 
 class MiscColor(Enum):
@@ -72,23 +135,8 @@ def create_legend() -> gv.Source:
     return gv.Source(graph.source)
 
 
-def merge_nodes(nodes: List[Node]) -> List[Node]:
-    """Merge node definitions and dependencies."""
-    results = {}
-    for node in nodes:
-        if node.name in results:
-            n = results[node.name]
-            n.depends_on = n.depends_on | node.depends_on
-            if n.is_definition and node.is_definition and n.type != node.type:
-                n.type = NodeType.multiple
-            n.lineno_str += ',' + node.lineno_str
-        else:
-            results[node.name] = node
-    return list(results.values())
-
-
 def create_graph(
-    nodes: List[Node],
+    lines: List[Line],
     skip_imports: bool = False,
     exclude: List[str] = None,
     graph_attrs: Dict[str, str] = None,
@@ -100,7 +148,7 @@ def create_graph(
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
-    nodes = merge_nodes(nodes)
+    nodes = merge_nodes(lines)
     graph = nx.DiGraph(**graph_attrs)
     for node in nodes:
         name = node.name.center(12, " ")
@@ -112,7 +160,7 @@ def create_graph(
         node_attrs.update(attrs)
         graph.add_node(node_prefix + node.name, **node_attrs)
         graph.add_edges_from([
-            (node_prefix + node.name, node_prefix + d) for d in node.depends_on
+            (node_prefix + node.name, node_prefix + d) for d in node.deps
         ], **edge_attrs)
 
     for node in nodes:

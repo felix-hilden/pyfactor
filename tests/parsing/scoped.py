@@ -57,6 +57,12 @@ class TestScoped:
         return source, refs
 
     @refs_equal
+    def test_func_return_annotation_shadows_inner_var(self):
+        source = 'a = 1\ndef foo(p: a):\n  a = 2'
+        refs = [('a', set()), ('foo', {'a'})]
+        return source, refs
+
+    @refs_equal
     def test_func_decorator_uses_var(self):
         source = 'a = 1\n@a\ndef foo():\n  pass'
         refs = [('a', set()), ('foo', {'a'})]
