@@ -209,6 +209,24 @@ class IfVisitor(Visitor):
         return self.node.body + self.node.orelse
 
 
+class WithVisitor(Visitor):
+    def parse_names(self) -> List[Name]:
+        names = []
+        for item in self.node.items:
+            if item.optional_vars is None:
+                continue
+            targets = flatten_assign_targets([item.optional_vars])
+            i_names = [assign_target_name(t) for t in targets]
+            i_deps = collect_names(item.context_expr)
+            for name in i_names:
+                name.deps = name.deps | i_deps
+            names.extend(i_names)
+        return names
+
+    def children(self) -> List[ast.AST]:
+        return self.node.body
+
+
 class FunctionVisitor(ScopedVisitor):
     def parse_names(self) -> List[Name]:
         return [Name(self.node.name, deps=set(), is_definition=True)]
@@ -319,6 +337,8 @@ def cast(node: ast.AST) -> Visitor:
     # Flow control visitors
     elif isinstance(node, ast.If):
         return IfVisitor(node)
+    elif isinstance(node, (ast.With, ast.AsyncWith)):
+        return WithVisitor(node)
 
     # Scoped visitors
     elif isinstance(node, ast.ClassDef):

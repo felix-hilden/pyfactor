@@ -41,3 +41,33 @@ else:
 """
         refs = [('a', set()), ('b', set()), ('c', {'a', 'b'})]
         return source, refs
+
+    @refs_equal
+    def test_with_const(self):
+        source = 'with 1:\n  pass'
+        refs = []
+        return source, refs
+
+    @refs_equal
+    def test_with_assigns_name(self):
+        source = 'with 1 as a:\n  pass'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_with_assigns_names(self):
+        source = 'with 1 as a, 2 as b:\n  pass'
+        refs = [('a', set()), ('b', set())]
+        return source, refs
+
+    @refs_equal
+    def test_with_assigns_name_using_var(self):
+        source = 'a = 1\nwith a as b:\n  pass'
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_with_assigns_nested_names(self):
+        source = 'with 1 as (a, (b, c)):\n  pass'
+        refs = [('a', set()), ('b', set()), ('c', set())]
+        return source, refs
