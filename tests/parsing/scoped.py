@@ -135,6 +135,12 @@ def foo():
         return source, refs
 
     @refs_equal
+    def test_with_without_target_in_func(self):
+        source = 'a = 1\ndef foo():\n  with a:\n    pass'
+        refs = [('a', set()), ('foo', {'a'})]
+        return source, refs
+
+    @refs_equal
     def test_class_body_uses_undeclared_var(self):
         source = 'class A:\n    b = 1'
         refs = [('A', set())]

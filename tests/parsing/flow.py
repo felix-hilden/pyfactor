@@ -71,3 +71,9 @@ else:
         source = 'with 1 as (a, (b, c)):\n  pass'
         refs = [('a', set()), ('b', set()), ('c', set())]
         return source, refs
+
+    @refs_equal
+    def test_with_name_not_propagated_forward(self):
+        source = 'with 1 as a:\n  b = 1'
+        refs = [('a', set()), ('b', set())]
+        return source, refs

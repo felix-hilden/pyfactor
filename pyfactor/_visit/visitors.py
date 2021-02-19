@@ -1,7 +1,7 @@
 import ast
 
-from dataclasses import dataclass
 from typing import List, Set, Iterable
+from .base import Visitor, Name, Scope
 
 
 def multi_union(sets: Iterable[Set]) -> Set:
@@ -23,91 +23,6 @@ def collect_args(args: ast.arguments):
     all_args = args.args + args.kwonlyargs
     all_args += [args.vararg, args.kwarg]
     return [arg for arg in all_args if arg is not None]
-
-
-@dataclass
-class Name:
-    """Name dependencies."""
-
-    name: str
-    deps: Set[str]
-    is_definition: bool
-
-
-@dataclass
-class Line:
-    """Line of multiple names."""
-
-    ast_node: ast.AST
-    names: List[Name]
-
-
-@dataclass
-class Scope:
-    """Scope state."""
-
-    used: Set[str] = None
-    assigned: Set[str] = None
-    globaled: Set[str] = None
-    nonlocaled: Set[str] = None
-    inner_potential: Set[str] = None
-    inner_globaled: Set[str] = None
-
-    def __post_init__(self):
-        """Ensure members are sets."""
-        self.used = self.used or set()
-        self.assigned = self.assigned or set()
-        self.globaled = self.globaled or set()
-        self.nonlocaled = self.nonlocaled or set()
-        self.inner_potential = self.inner_potential or set()
-        self.inner_globaled = self.inner_globaled or set()
-
-
-@dataclass
-class Visitor:
-    """AST node visitor base."""
-
-    node: ast.AST
-
-    @staticmethod
-    def forward_deps() -> Set[str]:
-        """Dependencies to propagate forward to child nodes (note: not self)."""
-        return set()
-
-    @staticmethod
-    def parse_names() -> List[Name]:
-        """Parse self (no children), return appropriate names."""
-        return []
-
-    def children(self) -> List[ast.AST]:
-        """Child nodes to be inspected next depending on ``breaks_scope``."""
-        return []
-
-    @property
-    def breaks_scope(self) -> bool:
-        """Node breaks scope and inner ones shouldn't be added to the current."""
-        return False
-
-    @staticmethod
-    def create_scope() -> Scope:
-        """Create new inner scope and populate from self."""
-        return Scope()
-
-    def update_scope(self, scope: Scope) -> None:
-        """Update scope if in an inner scope (for global and nonlocal statements)."""
-
-    @staticmethod
-    def merge_scopes(outer: Scope, inner: Scope) -> None:
-        """Merge inner scope to outer when moving back up in the ast tree."""
-        # Nonlocaled can be considered "from this scope" because they require
-        # an inner function scope, so we don't care about them in the outermost one
-        from_this_scope = (inner.assigned | inner.nonlocaled) - inner.globaled
-        outer.inner_potential.update(
-            (inner.used | inner.inner_potential) - from_this_scope - inner.globaled
-        )
-        outer.inner_globaled.update(
-            inner.globaled | inner.inner_globaled
-        )
 
 
 class DefaultVisitor(Visitor):
@@ -208,6 +123,9 @@ class IfVisitor(Visitor):
     def children(self) -> List[ast.AST]:
         return self.node.body + self.node.orelse
 
+    def update_scope(self, scope: Scope) -> None:
+        scope.used.update(self.forward_deps())
+
 
 class WithVisitor(Visitor):
     def parse_names(self) -> List[Name]:
@@ -225,6 +143,12 @@ class WithVisitor(Visitor):
 
     def children(self) -> List[ast.AST]:
         return self.node.body
+
+    def update_scope(self, scope: Scope) -> None:
+        for item in self.node.items:
+            if item.optional_vars is not None:
+                continue
+            scope.used.update(collect_names(item.context_expr))
 
 
 class FunctionVisitor(ScopedVisitor):
@@ -361,70 +285,3 @@ def cast(node: ast.AST) -> Visitor:
     # Default to DefaultVisitor
     elif isinstance(node, ast.AST):
         return DefaultVisitor(node)
-
-
-def parse_scoped(visitor: Visitor, scope: Scope) -> List[Name]:
-    """Parse nodes in a scope with shortcuts."""
-    for child in visitor.children():
-        child = cast(child)
-        if child is None:
-            continue
-
-        if child.breaks_scope:
-            new_scope = child.create_scope()
-            c_names = parse_scoped(child, new_scope)
-            child.merge_scopes(scope, new_scope)
-        else:
-            c_names = parse_scoped(child, scope)
-
-        child.update_scope(scope)
-
-        assigns = {n.name for n in c_names}
-        uses = multi_union(n.deps for n in c_names) | child.forward_deps()
-        scope.assigned.update(assigns - scope.used)
-        scope.used.update(uses)
-
-    return visitor.parse_names()
-
-
-def parse_no_scope(visitor: Visitor) -> List[Line]:
-    """Fully parse nodes as in outermost scope."""
-    forward = visitor.forward_deps()
-    lines = []
-
-    for child in visitor.children():
-        child = cast(child)
-        if child is None:
-            continue
-
-        if child.breaks_scope:
-            scope = child.create_scope()
-            c_names = parse_scoped(child, scope)
-            merged = Scope()
-            child.merge_scopes(merged, scope)
-            deps = merged.inner_globaled | merged.inner_potential
-            for name in c_names:
-                name.deps = name.deps | deps
-            lines.append(Line(child.node, c_names))
-        else:
-            lines.extend(parse_no_scope(child))
-
-    for line in lines:
-        for name in line.names:
-            name.deps = name.deps | forward
-
-    self_line = Line(visitor.node, visitor.parse_names())
-    return [self_line] + lines
-
-
-def parse_lines(source: str) -> List[Line]:
-    """Parse name definitions and references on lines from source."""
-    tree = ast.parse(source)
-    lines = parse_no_scope(cast(tree))
-    defined_names = {n.name for line in lines for n in line.names}
-
-    for line in lines:
-        for name in line.names:
-            name.deps = name.deps.intersection(defined_names)
-
-    return lines
