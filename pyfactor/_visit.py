@@ -126,6 +126,45 @@ class ScopedVisitor(Visitor):
         return True
 
 
+def assign_target_name(node) -> Name:
+    """Generate name for an assign target component."""
+    if isinstance(node, ast.Starred):
+        node = node.value
+
+    if isinstance(node, ast.Name):
+        return Name(node.id, deps=set(), is_definition=True)
+    elif isinstance(node, ast.Subscript):
+        name = assign_target_name(node.value)
+        deps = collect_names(node.slice)
+        name.deps = name.deps | deps
+        name.is_definition = False
+        return name
+    elif isinstance(node, ast.Attribute):
+        name = assign_target_name(node.value)
+        name.is_definition = False
+        return name
+    else:
+        raise ValueError(
+            f'Parsing error on line {node.lineno}: unknown assignment type!'
+        )
+
+
+def flatten_assign_targets(targets: List[ast.AST]) -> List[ast.AST]:
+    """Extract assign targets from nested structures."""
+    unresolved = targets
+    resolved = []
+
+    i = 0
+    while i < len(unresolved):
+        target = unresolved[i]
+        if isinstance(target, (ast.List, ast.Tuple)):
+            unresolved.extend(target.elts)
+        else:
+            resolved.append(target)
+        i += 1
+    return resolved
+
+
 class AssignVisitor(ScopedVisitor):
     """Fake scoped to handle possible inner scoped nodes."""
 
@@ -136,37 +175,9 @@ class AssignVisitor(ScopedVisitor):
     def _assign_targets(self) -> List[ast.AST]:
         return self.node.targets
 
-    def _target_component_name(self, node) -> Name:
-        """Generate name for an assign target component."""
-        if isinstance(node, ast.Starred):
-            node = node.value
-
-        if isinstance(node, ast.Name):
-            return Name(node.id, deps=set(), is_definition=True)
-        elif isinstance(node, ast.Subscript):
-            name = self._target_component_name(node.value)
-            deps = collect_names(node.slice)
-            name.deps = name.deps | deps
-            name.is_definition = False
-            return name
-        elif isinstance(node, ast.Attribute):
-            name = self._target_component_name(node.value)
-            name.is_definition = False
-            return name
-        else:
-            raise ValueError(
-                f'Parsing error on line {node.lineno}: unknown assignment type!'
-            )
-
     def parse_names(self) -> List[Name]:
-        target_list = []
-        for t in self._assign_targets:
-            if isinstance(t, (ast.List, ast.Tuple)):
-                target_list.extend(t.elts)
-            else:
-                target_list.append(t)
-
-        return [self._target_component_name(t) for t in target_list]
+        targets = flatten_assign_targets(self._assign_targets)
+        return [assign_target_name(t) for t in targets]
 
 
 class AugAssignVisitor(AssignVisitor):

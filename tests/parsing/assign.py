@@ -33,6 +33,12 @@ class TestAssign:
         return source, refs
 
     @refs_equal
+    def test_nested_unpack_assign_uses_none(self):
+        source = 'a, (b, c) = 1'
+        refs = [('a', set()), ('b', set()), ('c', set())]
+        return source, refs
+
+    @refs_equal
     def test_unpack_repack_assign_uses_none(self):
         source = 'a, *b = (1, 2)'
         refs = [('a', set()), ('b', set())]
