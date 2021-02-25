@@ -3,6 +3,18 @@ from ._util import refs_equal
 
 class TestFlow:
     @refs_equal
+    def test_if_test_comprehension_shadows(self):
+        source = 'a = 1\nif {a for a in range(2)}:\n  b = 2'
+        refs = [('a', set()), ('b', set())]
+        return source, refs
+
+    @refs_equal
+    def test_if_test_comprehension_uses(self):
+        source = 'a = 1\nif {a for i in range(2)}:\n  b = 2'
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
     def test_if_test_propagated_to_body(self):
         source = 'a = 1\nif a:\n  b = 2'
         refs = [('a', set()), ('b', {'a'})]

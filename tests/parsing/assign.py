@@ -99,6 +99,18 @@ class TestAssign:
         return source, refs
 
     @refs_equal
+    def test_assign_to_subscript_with_comp_shadows_var(self):
+        source = 'a = [0, 1]\nb = 1\na[{b for b in range(2)}] = 1'
+        refs = [('a', set()), ('b', set()), ('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_subscript_with_comp_uses_var(self):
+        source = 'a = [0, 1]\nb = 1\na[{b for i in range(2)}] = 1'
+        refs = [('a', set()), ('b', set()), ('a', {'b'})]
+        return source, refs
+
+    @refs_equal
     def test_assign_to_subscript_attribute(self):
         source = 'a = 0\nb = 1\na[b].c = 1'
         refs = [('a', set()), ('b', set()), ('a', {'b'})]
