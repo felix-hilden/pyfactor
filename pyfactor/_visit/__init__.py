@@ -31,6 +31,11 @@ class DefaultVisitor(Visitor):
         return list(ast.iter_child_nodes(self.node))
 
 
+class UpdateScopeForwardVisitor(Visitor):
+    def update_scope(self, scope: Scope) -> None:
+        scope.used.update(self.forward_deps())
+
+
 class NameVisitor(Visitor):
     def update_scope(self, scope: Scope) -> None:
         scope.used.add(self.node.id)
@@ -118,18 +123,28 @@ class ImportVisitor(Visitor):
 
 
 class TryVisitor(Visitor):
-    pass
+    def children(self) -> List[ast.AST]:
+        n = self.node
+        return n.body + n.handlers + n.orelse + n.finalbody
 
 
-class IfVisitor(Visitor):
+class ExceptHandlerVisitor(UpdateScopeForwardVisitor):
+    def forward_deps(self) -> Set[str]:
+        if self.node.type is not None:
+            return collect_names(self.node.type)
+        else:
+            return set()
+
+    def children(self) -> List[ast.AST]:
+        return self.node.body
+
+
+class IfVisitor(UpdateScopeForwardVisitor):
     def forward_deps(self) -> Set[str]:
         return collect_names(self.node.test)
 
     def children(self) -> List[ast.AST]:
         return self.node.body + self.node.orelse
-
-    def update_scope(self, scope: Scope) -> None:
-        scope.used.update(self.forward_deps())
 
 
 class WithVisitor(Visitor):
@@ -266,6 +281,8 @@ def cast(node: ast.AST) -> Visitor:
     # Flow control visitors
     elif isinstance(node, ast.Try):
         return TryVisitor(node)
+    elif isinstance(node, ast.ExceptHandler):
+        return ExceptHandlerVisitor(node)
     elif isinstance(node, ast.If):
         return IfVisitor(node)
     elif isinstance(node, (ast.With, ast.AsyncWith)):

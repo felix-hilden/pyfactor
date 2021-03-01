@@ -89,3 +89,30 @@ else:
         source = 'with 1 as a:\n  b = 1'
         refs = [('a', set()), ('b', set())]
         return source, refs
+
+    @refs_equal
+    def test_try(self):
+        source = """
+try:
+    a = 1
+except:
+    b = 2
+else:
+    c = 3
+finally:
+    d = 4
+"""
+        refs = [('a', set()), ('b', set()), ('c', set()), ('d', set())]
+        return source, refs
+
+    @refs_equal
+    def test_try_handler_propagated_forward(self):
+        source = 'a = 1\ntry:\n  pass\nexcept a:\n  b = 1'
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_try_handler_as_tuple(self):
+        source = 'a = 1\ntry:\n  pass\nexcept (a, ValueError):\n  b = 1'
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
