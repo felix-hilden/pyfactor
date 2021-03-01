@@ -1,4 +1,4 @@
-from ._util import refs_equal
+from ._util import refs_equal, refs_in
 
 
 class TestFlow:
@@ -115,4 +115,40 @@ finally:
     def test_try_handler_as_tuple(self):
         source = 'a = 1\ntry:\n  pass\nexcept (a, ValueError):\n  b = 1'
         refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_while(self):
+        source = 'while True:\n  a = 1'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_while_test_propagated_forward(self):
+        source = 'a = 1\nwhile a:\n  b = 2\nelse:\n  c = 3'
+        refs = [('a', set()), ('b', {'a'}), ('c', {'a'})]
+        return source, refs
+
+    @refs_equal
+    def test_for_assigns(self):
+        source = 'for a in range(3):\n  pass'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_for_iter_uses_var(self):
+        source = 'a = 1\nfor b in range(a):\n  pass'
+        refs = [('a', set()), ('b', {'a'})]
+        return source, refs
+
+    @refs_in
+    def test_for_nested_assign(self):
+        source = 'for a, (b, c) in range(3):\n  pass'
+        refs = [('a', set()), ('b', set()), ('c', set())]
+        return source, refs
+
+    @refs_equal
+    def test_for_iter_propagated_forward(self):
+        source = 'a = 1\nfor b in range(a):\n  c = 3\nelse:  d = 4'
+        refs = [('a', set()), ('b', {'a'}), ('c', {'a'}), ('d', {'a'})]
         return source, refs

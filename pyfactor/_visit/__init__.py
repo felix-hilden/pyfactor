@@ -171,6 +171,27 @@ class WithVisitor(Visitor):
             scope.used.update(collect_names(item.context_expr))
 
 
+class WhileVisitor(UpdateScopeForwardVisitor):
+    def forward_deps(self) -> Set[str]:
+        return collect_names(self.node.test)
+
+    def children(self) -> List[ast.AST]:
+        return self.node.body + self.node.orelse
+
+
+class ForVisitor(Visitor):
+    def parse_names(self) -> List[Name]:
+        names = collect_names(self.node.target)
+        deps = collect_names(self.node.iter)
+        return [Name(name, deps, is_definition=True) for name in names]
+
+    def forward_deps(self) -> Set[str]:
+        return collect_names(self.node.iter)
+
+    def children(self) -> List[ast.AST]:
+        return self.node.body + self.node.orelse
+
+
 class FunctionVisitor(ScopedVisitor):
     def parse_names(self) -> List[Name]:
         return [Name(self.node.name, deps=set(), is_definition=True)]
@@ -287,6 +308,10 @@ def cast(node: ast.AST) -> Visitor:
         return IfVisitor(node)
     elif isinstance(node, (ast.With, ast.AsyncWith)):
         return WithVisitor(node)
+    elif isinstance(node, (ast.For, ast.AsyncFor)):
+        return ForVisitor(node)
+    elif isinstance(node, ast.While):
+        return WhileVisitor(node)
 
     # Scoped visitors
     elif isinstance(node, ast.ClassDef):
