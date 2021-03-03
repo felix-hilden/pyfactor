@@ -172,8 +172,8 @@ def create_graph(
     in_degs = []
     out_degs = []
     for node in graph.nodes:
-        in_deg = graph.in_degree(node)
-        out_deg = graph.out_degree(node)
+        in_deg = len([0 for u, v in graph.in_edges(node) if u != node])
+        out_deg = len([0 for u, v in graph.out_edges(node) if v != node])
         in_degs.append(in_deg)
         out_degs.append(out_deg)
 
