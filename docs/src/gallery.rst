@@ -19,6 +19,10 @@ Legend information is available in the image below (click to enlarge).
    :target: _images/legend.png
    :alt: legend visualisation
 
+In addition to type and connectivity information the nodes contain
+a line number indicating the location of the definition.
+Multiple line numbers are given if the name has multiple definitions.
+
 Types
 *****
 - Unknown: node type unknown for some reason
