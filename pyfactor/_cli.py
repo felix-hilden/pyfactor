@@ -46,19 +46,19 @@ group_graph.add_argument(
 group_graph.add_argument(
     '--graph-attr', '-ga', action='append', help=(
         'Graphviz graph attributes as colon-separated name-value pairs '
-        '(e.g. -ga overlap:false) NOTE: overrides attributes set by Pyfactor'
+        '(e.g. -ga overlap:false) NOTE: overrided by Pyfactor'
     )
 )
 group_graph.add_argument(
     '--node-attr', '-na', action='append', help=(
         'Graphviz node attributes as colon-separated name-value pairs '
-        '(e.g. -na style:filled,rounded) NOTE: overrides attributes set by Pyfactor'
+        '(e.g. -na style:filled,rounded) NOTE: overrided by Pyfactor'
     )
 )
 group_graph.add_argument(
     '--edge-attr', '-ea', action='append', help=(
         'Graphviz edge attributes as colon-separated name-value pairs '
-        '(e.g. -ea arrowsize:2) NOTE: overrides attributes set by Pyfactor'
+        '(e.g. -ea arrowsize:2) NOTE: overrided by Pyfactor'
     )
 )
 group_graph.add_argument('--engine', help='Graphviz layout engine')
