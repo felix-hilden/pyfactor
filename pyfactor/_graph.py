@@ -194,7 +194,12 @@ def create_graph(
         central = sum(c > ct for ct in centralities) / len(centralities)
         for level, color in centrality_color.items():
             if central > level:
-                graph.nodes[node]['fillcolor'] = color
+                n = graph.nodes[node]
+                if n['fillcolor'] != ConnectivityColor.default.value:
+                    n['fillcolor'] = n['fillcolor'] + ';0.5:' + color
+                    n['gradientangle'] = 305
+                else:
+                    n['fillcolor'] = color
                 break
 
     undirected = graph.to_undirected()
