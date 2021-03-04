@@ -169,13 +169,11 @@ def create_graph(
         if node.name in exclude:
             graph.remove_node(node_prefix + node.name)
 
-    in_degs = []
-    out_degs = []
+    conn = {}
     for node in graph.nodes:
         in_deg = len([0 for u, v in graph.in_edges(node) if u != node])
         out_deg = len([0 for u, v in graph.out_edges(node) if v != node])
-        in_degs.append(in_deg)
-        out_degs.append(out_deg)
+        conn[node] = (in_deg, out_deg)
 
         if in_deg == 0 and out_deg == 0:
             fill = ConnectivityColor.isolated
@@ -187,10 +185,10 @@ def create_graph(
             fill = ConnectivityColor.default
         graph.nodes[node]['fillcolor'] = fill.value
 
-    centralities = sorted(i + o for i, o in zip(in_degs, out_degs))
+    centralities = sorted(i + o for i, o in conn.values())
 
     for node in graph.nodes:
-        c = graph.in_degree(node) + graph.out_degree(node)
+        c = conn[node][0] + conn[node][1]
         central = sum(c > ct for ct in centralities) / len(centralities)
         for level, color in centrality_color.items():
             if central > level:
