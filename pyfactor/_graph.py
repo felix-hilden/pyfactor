@@ -132,6 +132,9 @@ def create_legend() -> gv.Source:
         s.node('bridge1', label=' ')
         s.node('bridge2', label=' ')
         s.edge('bridge1', 'bridge2', label='bridge', color=MiscColor.bridge.value)
+        s.node(
+            'collapsed', peripheries='2', fillcolor=ConnectivityColor.waypoint.value
+        )
 
     return gv.Source(graph.source)
 
@@ -149,12 +152,15 @@ def create_graph(
     lines: List[Line],
     skip_imports: bool = False,
     exclude: List[str] = None,
+    collapse_waypoints: bool = False,
+    collapse_exclude: List[str] = None,
     graph_attrs: Dict[str, str] = None,
     node_attrs: Dict[str, str] = None,
     edge_attrs: Dict[str, str] = None,
 ) -> nx.DiGraph:
     """Create and populate a graph from references."""
     exclude = set(exclude or [])
+    collapse_exclude = set(collapse_exclude or [])
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
@@ -210,20 +216,33 @@ def create_graph(
             from_, to = to, from_
         graph.edges[from_, to]['color'] = bridge
 
-    for node in graph.nodes:
-        if conn[node][0] == 0 or conn[node][1] == 0:
+    i = -1
+    graph_nodes = list(graph.nodes)
+    removed_nodes = set()
+    while i + 1 < len(graph_nodes):
+        i += 1
+        node = graph_nodes[i]
+
+        if node in removed_nodes or conn[node][0] == 0 or conn[node][1] == 0:
             continue
 
         undirected = graph.to_undirected()
         undirected.remove_node(node)
+        components = list(nx.connected_components(undirected))
 
         in_nodes = {u for u, _ in graph.in_edges(node) if u != node}
         out_nodes = {v for _, v in graph.out_edges(node) if v != node}
-        for comp in nx.connected_components(undirected):
+        for comp in components:
             if len(comp & in_nodes) and len(comp & out_nodes):
                 break
         else:
             append_color(graph.nodes[node], ConnectivityColor.waypoint.value)
+            if collapse_waypoints and node[len(node_prefix):] not in collapse_exclude:
+                graph.nodes[node]['peripheries'] = 2
+                for comp in components:
+                    if len(comp & out_nodes):
+                        removed_nodes = removed_nodes | comp
+                        graph.remove_nodes_from(comp)
     return graph
 
 

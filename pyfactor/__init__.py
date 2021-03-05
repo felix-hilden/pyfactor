@@ -20,6 +20,8 @@ def parse(
     graph_path: str,
     skip_imports: bool = False,
     exclude: _List[str] = None,
+    collapse_waypoints: bool = False,
+    collapse_exclude: _List[str] = None,
     graph_attrs: _Dict[str, str] = None,
     node_attrs: _Dict[str, str] = None,
     edge_attrs: _Dict[str, str] = None,
@@ -37,6 +39,10 @@ def parse(
         do not visualise imports (reducing clutter)
     exclude
         exclude nodes in the graph
+    collapse_waypoints
+        collapse waypoint nodes
+    collapse_exclude
+        exclude nodes from being collapsed
     graph_attrs
         Graphviz graph attributes (overrided by Pyfactor)
     node_attrs
@@ -50,6 +56,8 @@ def parse(
         lines,
         skip_imports=skip_imports,
         exclude=exclude,
+        collapse_waypoints=collapse_waypoints,
+        collapse_exclude=collapse_exclude,
         graph_attrs=graph_attrs,
         node_attrs=node_attrs,
         edge_attrs=edge_attrs,
@@ -148,6 +156,8 @@ def main() -> None:
     parse_kwargs = {
         'skip_imports': args.skip_imports,
         'exclude': args.exclude,
+        'collapse_waypoints': args.collapse_waypoints,
+        'collapse_exclude': args.collapse_exclude,
         'graph_attrs': _attrs_to_dict(args.graph_attr),
         'node_attrs': _attrs_to_dict(args.node_attr),
         'edge_attrs': _attrs_to_dict(args.edge_attr),

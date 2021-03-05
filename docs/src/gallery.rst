@@ -39,6 +39,7 @@ Colours
   deeper red indicates an increased centrality
 - Waypoint: a node whose children can only be reached from its parents
   via that node
+- Collapsed: waypoint with its child nodes collapsed (see CLI options)
 - Leaf: has no child nodes
 - Root: has no parent nodes
 - Isolated: has no dependencies

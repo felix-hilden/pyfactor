@@ -32,7 +32,17 @@ group_parse.add_argument(
 group_parse.add_argument(
     '--exclude', '-e', action='append', help='exclude nodes in the source'
 )
-
+group_parse.add_argument(
+    '--collapse-waypoints', '-cw', action='store_true', help=(
+        'remove children of waypoint nodes and mark them as collapsed'
+    )
+)
+group_parse.add_argument(
+    '--collapse-exclude', '-ce', action='append', help=(
+        'exclude waypoint nodes from being collapsed'
+        'when --collapse-waypoints is set'
+    )
+)
 group_graph = parser.add_argument_group('Graph appearance')
 group_graph.add_argument(
     '--stagger', type=int, default=2, help='max Graphviz unflatten stagger'
