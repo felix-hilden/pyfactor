@@ -2,6 +2,13 @@
 
 Release notes
 =============
+0.3.0 (2021-03-05)
+------------------
+- Parse docstrings and provide them as tooltips (:issue:`8`)
+- Change default render format to SVG (for doc tooltips) (:issue:`8`)
+- Improve visual representation and legend, analyse waypoints
+  (:issue:`4`, :issue:`12`, :issue:`13`)
+
 0.2.0 (2021-03-01)
 ------------------
 - Add handlers for most Python constructs
