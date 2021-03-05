@@ -16,8 +16,9 @@ group_mode.add_argument('names', nargs='?', default=None, help=(
     'Several SHORTCUTS are possible by omitting components: '
     's = s:-:, s:r = s:-:r, -:g = -:g:, s:- = s::-'
 ))
-group_mode.add_argument('--format', '-f', default='pdf', help=(
-    'render file format, appended to all render file names (default: %(default)s)'
+group_mode.add_argument('--format', '-f', default='svg', help=(
+    'render file format, appended to all render file names (default: %(default)s) '
+    'NOTE: displaying docstring tooltips is only available in svg and cmap formats'
 ))
 group_mode.add_argument(
     '--legend', nargs='?', default=None, const='pyfactor-legend', help=(

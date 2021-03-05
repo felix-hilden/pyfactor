@@ -1,6 +1,6 @@
 import ast
 
-from typing import List, Set, Iterable
+from typing import List, Set, Iterable, Tuple, Optional
 from .base import Visitor, Name, Scope, Line
 
 
@@ -336,23 +336,47 @@ def cast(node: ast.AST) -> Visitor:
         return DefaultVisitor(node)
 
 
-def parse_scoped(visitor: Visitor, scope: Scope) -> List[Name]:
-    """Parse nodes in a scope with shortcuts."""
+def maybe_get_docstring(node: ast.AST):
+    """Get docstring from a constant expression, or return None."""
+    if (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    ):
+        return node.value.value
+    elif (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Str)
+    ):
+        return node.value.s
+
+
+def parse_scoped(visitor: Visitor, scope: Scope) -> Tuple[List[Name], Optional[str]]:
+    """
+    Parse nodes in a scope with shortcuts.
+
+    Returns parsed names and possible docstring for parent visitor.
+    """
     if not visitor.breaks_scope:
         # Was called on an arbitrary node
         visitor.update_scope(scope)
 
-    for child in visitor.children():
+    parent_doc = None
+    children = visitor.children()
+    if children:
+        parent_doc = maybe_get_docstring(children[0])
+
+    for child in children:
         child = cast(child)
         if child is None:
             continue
 
         if child.breaks_scope:
             new_scope = child.create_scope()
-            c_names = parse_scoped(child, new_scope)
+            c_names, _ = parse_scoped(child, new_scope)
             child.merge_scopes(scope, new_scope)
         else:
-            c_names = parse_scoped(child, scope)
+            c_names, _ = parse_scoped(child, scope)
 
         child.update_scope(scope)
 
@@ -361,36 +385,48 @@ def parse_scoped(visitor: Visitor, scope: Scope) -> List[Name]:
         scope.assigned.update(assigns - scope.used)
         scope.used.update(uses)
 
-    return visitor.parse_names()
+    return visitor.parse_names(), parent_doc
 
 
 def parse_no_scope(visitor: Visitor) -> List[Line]:
     """Fully parse nodes as in outermost scope."""
+    self_line = Line(visitor.node, visitor.parse_names(), docstring=None)
     lines = []
-
+    previous = visitor
     for child in visitor.children():
+        if previous is visitor:
+            self_line.docstring = maybe_get_docstring(child)
+            previous = None
+        elif previous is not None:
+            previous.docstring = maybe_get_docstring(child)
+            previous = None
+
         child = cast(child)
         if child is None:
             continue
 
         if child.breaks_scope:
             scope = child.create_scope()
-            c_names = parse_scoped(child, scope)
+            c_names, doc = parse_scoped(child, scope)
             merged = Scope()
             child.merge_scopes(merged, scope)
             deps = merged.inner_globaled | merged.inner_potential
             for name in c_names:
                 name.deps = name.deps | deps
-            lines.append(Line(child.node, c_names))
+            line = Line(child.node, c_names, docstring=doc)
+            lines.append(line)
+            previous = line if doc is None else None
         else:
             lines.extend(parse_no_scope(child))
+            previous = None
 
+    forward = visitor.forward_deps()
     for line in lines:
         for name in line.names:
-            name.deps = name.deps | visitor.forward_deps()
+            name.deps = name.deps | forward
 
-    self_line = Line(visitor.node, visitor.parse_names())
-    return [self_line] + lines
+    lines = [self_line] + lines
+    return [line for line in lines if line.names or line.docstring]
 
 
 def parse_lines(source: str) -> List[Line]:

@@ -5,7 +5,8 @@ import graphviz as gv
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict, Set
+from textwrap import dedent
+from typing import List, Dict, Set, Optional
 from ._visit import Line
 
 
@@ -40,6 +41,7 @@ class GraphNode:
     deps: Set[str]
     type: NodeType
     lineno_str: str
+    docstring: Optional[str]
 
 
 def merge_nodes(lines: List[Line]) -> List[GraphNode]:
@@ -52,6 +54,7 @@ def merge_nodes(lines: List[Line]) -> List[GraphNode]:
                 name.deps,
                 get_type(line.ast_node),
                 str(line.ast_node.lineno),
+                line.docstring,
             )
             if node.name not in nodes:
                 nodes[node.name] = [node, name.is_definition]
@@ -172,6 +175,7 @@ def create_graph(
             'label': f'{name}\n{node.type.value}:{node.lineno_str}',
             'shape': type_shape[node.type],
             'style': 'filled',
+            'tooltip': dedent(node.docstring or f'{node.name} - no docstring'),
         }
         node_attrs.update(attrs)
         graph.add_node(node_prefix + node.name, **node_attrs)

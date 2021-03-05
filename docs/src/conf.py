@@ -50,11 +50,11 @@ def gallery_doc(name: str, url: str) -> str:
 {name}
 {'=' * len(name)}
 {summary}
-with :code:`pyfactor source.py --format png --skip-imports`.
+with :code:`pyfactor source.py --skip-imports`.
 Click the image to enlarge.
 
-.. image:: {name}.png
-   :target: ../_images/{name}.png
+.. image:: {name}.svg
+   :target: ../_images/{name}.svg
    :alt: {name} visualisation
 """
 
@@ -66,7 +66,7 @@ if os.environ.get('PYFACTOR_RTD_BUILD', False):
 
 # Generate legend
 legend_path = gallery_path / 'legend'
-pyfactor.legend(str(legend_path), {'chain': 2}, {'format': 'png'})
+pyfactor.legend(str(legend_path), {'chain': 2}, {'format': 'svg'})
 
 # Generate examples
 gallery_path.mkdir(exist_ok=True)
@@ -92,5 +92,5 @@ for example in gallery_examples:
         str(source_path), None, str(image_path),
         parse_kwargs={'skip_imports': True},
         preprocess_kwargs={'stagger': 10, 'fanout': True, 'chain': 5},
-        render_kwargs={'format': 'png'},
+        render_kwargs={'format': 'svg'},
     )

@@ -28,3 +28,19 @@ def refs_in(func):
                     f'Missing node! Parsed\n{n.name} with deps: {n.deps}'
                 )
     return wrapper
+
+
+def docs_equal(func):
+    @wraps(func)
+    def wrapper(self):
+        source, expected = func(self)
+        lines = parse_lines(source)
+        print(lines)
+        docs = [line.docstring for line in lines]
+        assert len(docs) == len(expected), (
+            f'Wrong number of docs! Expected\n{expected}\ngot\n{docs}'
+        )
+        for d, e in zip(docs, expected):
+            err = f'Wrong doc! Expected\n{e}\ngot\n{d}'
+            assert d == e or d is None and e is None, err
+    return wrapper

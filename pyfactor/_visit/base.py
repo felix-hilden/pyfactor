@@ -1,7 +1,7 @@
 import ast
 
 from dataclasses import dataclass
-from typing import List, Set
+from typing import List, Set, Optional
 
 
 @dataclass
@@ -19,6 +19,7 @@ class Line:
 
     ast_node: ast.AST
     names: List[Name]
+    docstring: Optional[str]
 
 
 @dataclass
