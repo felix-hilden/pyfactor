@@ -15,8 +15,8 @@ Legend
 ------
 Legend information is available in the image below (click to enlarge).
 
-.. image:: gallery/legend.png
-   :target: _images/legend.png
+.. image:: gallery/legend.svg
+   :target: _images/legend.svg
    :alt: legend visualisation
 
 In addition to type and connectivity information the nodes contain
@@ -24,6 +24,11 @@ a line number indicating the location of the definition.
 Multiple line numbers are given if the name has multiple definitions.
 A single node can also be colored with two colors,
 indicating for example a central leaf node.
+
+.. note::
+
+    Docstrings are provided as tooltips: hover over nodes of the SVG image
+    to view the tooltip.
 
 Types
 *****

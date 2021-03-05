@@ -17,8 +17,8 @@ please submit an issue on `GitHub`_.
 
 For a glimpse into what is possible, here's a graph of our parsing module:
 
-.. image:: gallery/pyfactor.png
-   :target: _images/pyfactor.png
+.. image:: gallery/pyfactor.svg
+   :target: _images/pyfactor.svg
    :alt: pyfactor visualisation
 
 More examples can be found in our :ref:`gallery`.
