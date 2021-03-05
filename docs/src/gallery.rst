@@ -37,6 +37,8 @@ Colours
 - Bridge: a dependency that when removed, would break the graph into pieces
 - Centrality: the number of connections that a given node has,
   deeper red indicates an increased centrality
+- Waypoint: a node whose children can only be reached from its parents
+  via that node
 - Leaf: has no child nodes
 - Root: has no parent nodes
 - Isolated: has no dependencies

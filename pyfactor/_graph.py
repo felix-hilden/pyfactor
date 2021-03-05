@@ -82,6 +82,7 @@ class ConnectivityColor(Enum):
     isolated = '#E5E5E5'
     root = '#BBEEFF'
     leaf = '#E4FFE4'
+    waypoint = '#EFC4FF'
 
 
 type_shape = {
@@ -135,6 +136,15 @@ def create_legend() -> gv.Source:
     return gv.Source(graph.source)
 
 
+def append_color(node, color: str) -> None:
+    """Append or replace default color."""
+    if node['fillcolor'] != ConnectivityColor.default.value:
+        node['fillcolor'] = node['fillcolor'] + ';0.5:' + color
+        node['gradientangle'] = 305
+    else:
+        node['fillcolor'] = color
+
+
 def create_graph(
     lines: List[Line],
     skip_imports: bool = False,
@@ -164,9 +174,7 @@ def create_graph(
         ], **edge_attrs)
 
     for node in nodes:
-        if skip_imports and node.type == NodeType.import_:
-            graph.remove_node(node_prefix + node.name)
-        if node.name in exclude:
+        if skip_imports and node.type == NodeType.import_ or node.name in exclude:
             graph.remove_node(node_prefix + node.name)
 
     conn = {}
@@ -192,20 +200,30 @@ def create_graph(
         central = sum(c > ct for ct in centralities) / len(centralities)
         for level, color in centrality_color.items():
             if central > level:
-                n = graph.nodes[node]
-                if n['fillcolor'] != ConnectivityColor.default.value:
-                    n['fillcolor'] = n['fillcolor'] + ';0.5:' + color
-                    n['gradientangle'] = 305
-                else:
-                    n['fillcolor'] = color
+                append_color(graph.nodes[node], color)
                 break
 
     undirected = graph.to_undirected()
+    bridge = MiscColor.bridge.value
     for from_, to in nx.bridges(undirected):
-        if graph.has_edge(from_, to):
-            graph.edges[from_, to]['color'] = MiscColor.bridge.value
-        if graph.has_edge(to, from_):
-            graph.edges[to, from_]['color'] = MiscColor.bridge.value
+        if not graph.has_edge(from_, to):
+            from_, to = to, from_
+        graph.edges[from_, to]['color'] = bridge
+
+    for node in graph.nodes:
+        if conn[node][0] == 0 or conn[node][1] == 0:
+            continue
+
+        undirected = graph.to_undirected()
+        undirected.remove_node(node)
+
+        in_nodes = {u for u, _ in graph.in_edges(node) if u != node}
+        out_nodes = {v for _, v in graph.out_edges(node) if v != node}
+        for comp in nx.connected_components(undirected):
+            if len(comp & in_nodes) and len(comp & out_nodes):
+                break
+        else:
+            append_color(graph.nodes[node], ConnectivityColor.waypoint.value)
     return graph
 
 
