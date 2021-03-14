@@ -155,6 +155,7 @@ def create_graph(
     lines: List[Line],
     skip_imports: bool = False,
     exclude: List[str] = None,
+    root: str = None,
     collapse_waypoints: bool = False,
     collapse_exclude: List[str] = None,
     graph_attrs: Dict[str, str] = None,
@@ -247,6 +248,16 @@ def create_graph(
                     if len(comp & out_nodes):
                         removed_nodes = removed_nodes | comp
                         graph.remove_nodes_from(comp)
+
+    if root:
+        done = set()
+        potential = {node_prefix + root}
+        while potential:
+            n = potential.pop()
+            done.add(n)
+            succ = graph.successors(n)
+            potential.update({s for s in succ if s not in done})
+        graph = graph.subgraph(done)
     return graph
 
 

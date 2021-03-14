@@ -44,6 +44,13 @@ group_parse.add_argument(
         'when --collapse-waypoints is set'
     )
 )
+group_parse.add_argument(
+    '--root', '-r', default=None, help=(
+        'only show root and its children in the graph '
+        'NOTE: does not affect graph coloring'
+    )
+)
+
 group_graph = parser.add_argument_group('Graph appearance')
 group_graph.add_argument(
     '--stagger', type=int, default=2, help='max Graphviz unflatten stagger'
