@@ -4,6 +4,7 @@ Release notes
 =============
 Unreleased
 ----------
+- Split CLI file name specification to separate arguments (:issue:`5`)
 - Add option to specify graph root (:issue:`14`)
 
 0.3.0 (2021-03-05)

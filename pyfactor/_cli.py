@@ -6,15 +6,22 @@ parser = ArgumentParser(
 )
 
 group_mode = parser.add_argument_group('Source and output')
-group_mode.add_argument('names', nargs='?', default=None, help=(
-    'a colon-delimited sequence of file names source:graph:render. '
-    'Hyphens (-) DISABLE input/output (e.g. do not write a graph: s:-:r). '
-    'If source is disabled, graph is used as the only input instead. '
-    'Disabling two or more components will return with an error code 1. '
-    'Empty graph and render names (e.g. s::) are INFERRED from source and graph, '
-    'respectively. Source must never be empty. '
-    'Several SHORTCUTS are possible by omitting components: '
-    's = s:-:, s:r = s:-:r, -:g = -:g:, s:- = s::-'
+group_mode.add_argument('source', nargs='?', help=(
+    'source file name. If source was disabled by leaving it unspecified, '
+    '--graph is used as direct input for rendering. Disabling two or more of '
+    'SOURCE, --graph and --output will return with an error code 1.'
+))
+group_mode.add_argument('--graph', '-g', nargs='?', default='-', const=None, help=(
+    'write or read intermediate graph file. Graph output is disabled by default. '
+    'If a value is specified, it is used as the file name. '
+    'The file name is inferred from SOURCE if no value is provided. '
+    'See SOURCE for more information.'
+))
+group_mode.add_argument('--output', '-o', help=(
+    'render file name. By default the name is inferred from --graph. '
+    'If the name is a single hyphen, render output is disabled '
+    'and a graph is written to --graph. See SOURCE for more information. '
+    'NOTE: --format is appended to the name'
 ))
 group_mode.add_argument('--format', '-f', default='svg', help=(
     'render file format, appended to all render file names (default: %(default)s) '
@@ -100,43 +107,28 @@ class ArgumentError(RuntimeError):
     """Invalid command line arguments given."""
 
 
-def parse_names(names):
+def parse_names(source, graph, output):
     """Parse file names from arguments."""
-    split = names.split(':')
+    if source is None and (graph is None or graph == '-'):
+        raise ArgumentError('Pyfactor: no input specified!')
+    if graph == '-' and output == '-':
+        raise ArgumentError('Pyfactor: all output disabled!')
+    if source is None and output == '-':
+        raise ArgumentError('Pyfactor: only graph name specified!')
 
-    if sum(s == '-' for s in split) > 1:
-        raise ArgumentError(f'Pyfactor: too many disabled names in `{names}`!')
-    if split[0] == '' or (split[0] == '-' and split[1] == ''):
-        raise ArgumentError(f'Pyfactor: cannot infer names from `{names}`!')
-    if len(split) > 3:
-        raise ArgumentError(f'Pyfactor: too many names in `{names}`!')
+    if source is None:
+        g = Path(graph)
+        o = Path(output) if output else g.with_suffix('')
+        return None, g, o
 
-    # Expand to three components
-    if len(split) == 1:
-        split += ['-', '']
-    if len(split) == 2:
-        if split[0] == '-':
-            split += ['']
-        elif split[1] == '-':
-            split.insert(1, '')
-        else:
-            split.insert(1, '-')
-
-    # Parse components
-    if split[0] == '-':
-        g = Path(split[1])
-        r = Path(split[2]) if split[2] else g.with_suffix('')
-        return None, g, r
-    elif split[1] == '-':
-        s = Path(split[0])
-        r = Path(split[2]) if split[2] else s.with_suffix('')
-        return s, None, r
-    elif split[2] == '-':
-        s = Path(split[0])
-        g = Path(split[1]) if split[1] else s.with_suffix('.gv')
+    s = Path(source)
+    if graph == '-':
+        o = Path(output) if output else s.with_suffix('')
+        return s, None, o
+    if output == '-':
+        g = Path(graph) if graph else s.with_suffix('.gv')
         return s, g, None
     else:
-        s = Path(split[0])
-        g = Path(split[1]) if split[1] else s.with_suffix('.gv')
-        r = Path(split[2]) if split[2] else g.with_suffix('')
-        return s, g, r
+        g = Path(graph) if graph else s.with_suffix('.gv')
+        o = Path(output) if output else g.with_suffix('')
+        return s, g, o

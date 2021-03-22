@@ -152,7 +152,9 @@ def main() -> None:
         exit(1)
 
     try:
-        source_path, graph_path, render_path = _cli.parse_names(args.names)
+        source_path, graph_path, render_path = _cli.parse_names(
+            args.source, args.graph, args.output
+        )
     except _cli.ArgumentError as e:
         print(str(e), file=_stderr)
         exit(1)
