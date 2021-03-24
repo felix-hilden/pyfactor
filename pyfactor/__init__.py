@@ -146,19 +146,6 @@ def main() -> None:
         print(f'Pyfactor v.{__version__}', file=_stderr)
         exit(0)
 
-    if args.names is None:
-        if args.legend is None:
-            _cli.parser.print_help(_stderr)
-        exit(1)
-
-    try:
-        source_path, graph_path, render_path = _cli.parse_names(
-            args.source, args.graph, args.output
-        )
-    except _cli.ArgumentError as e:
-        print(str(e), file=_stderr)
-        exit(1)
-
     parse_kwargs = {
         'skip_imports': args.skip_imports,
         'exclude': args.exclude,
@@ -183,12 +170,23 @@ def main() -> None:
 
     if args.legend:
         legend(args.legend, preprocess_kwargs, render_kwargs)
+    if args.source:
+        try:
+            source_path, graph_path, render_path = _cli.parse_names(
+                args.source, args.graph, args.output
+            )
+        except _cli.ArgumentError as e:
+            print(str(e), file=_stderr)
+            exit(1)
 
-    pyfactor(
-        source_path,
-        graph_path,
-        render_path,
-        parse_kwargs,
-        preprocess_kwargs,
-        render_kwargs,
-    )
+        pyfactor(
+            source_path,
+            graph_path,
+            render_path,
+            parse_kwargs,
+            preprocess_kwargs,
+            render_kwargs,
+        )
+    if not args.source and not args.legend:
+        _cli.parser.print_help(_stderr)
+        exit(1)
