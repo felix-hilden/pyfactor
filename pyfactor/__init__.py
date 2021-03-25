@@ -55,8 +55,11 @@ def parse(
     """
     source = _io.read_source(source_path)
     lines = _visit.parse_lines(source)
+    path = _Path(source_path)
+    prefix = str('/'.join(path.parts[path.is_absolute():]))
     graph = _graph.create_graph(
         lines,
+        node_prefix=prefix,
         skip_imports=skip_imports,
         exclude=exclude,
         root=root,

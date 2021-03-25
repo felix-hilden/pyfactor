@@ -102,7 +102,6 @@ centrality_color = {
     0.95: '#FFA0A0',
     0.68: '#FFE0E0',
 }
-node_prefix = 'pf-'
 
 
 def create_legend() -> gv.Source:
@@ -154,6 +153,7 @@ def append_color(node, color: str) -> None:
 
 def create_graph(
     lines: List[Line],
+    node_prefix: str,
     skip_imports: bool = False,
     exclude: List[str] = None,
     root: str = None,
