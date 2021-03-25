@@ -322,6 +322,7 @@ def render(
         formatter=formatter,
     )
     out_path = Path(out_path).with_suffix('.' + format)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(image_bytes)
     if view:
         gv.view(str(out_path))
