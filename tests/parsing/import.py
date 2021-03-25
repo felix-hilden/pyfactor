@@ -27,6 +27,18 @@ class TestImport:
         return source, refs
 
     @refs_equal
+    def test_import_submodule(self):
+        source = 'import a.b'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_import_submodule_as(self):
+        source = 'import a.b as c'
+        refs = [('c', set())]
+        return source, refs
+
+    @refs_equal
     def test_from_import_module(self):
         source = 'from a import b'
         refs = [('b', set())]

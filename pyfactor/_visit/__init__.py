@@ -118,8 +118,12 @@ class AnnAssignVisitor(AssignVisitor):
 
 class ImportVisitor(Visitor):
     def parse_names(self) -> List[Name]:
-        names = [n.name if n.asname is None else n.asname for n in self.node.names]
+        names = [self._get_name(n) for n in self.node.names]
         return [Name(n, deps=set(), is_definition=True) for n in names]
+
+    @staticmethod
+    def _get_name(n):
+        return n.asname if n.asname else n.name.split('.')[0]
 
 
 class TryVisitor(Visitor):
