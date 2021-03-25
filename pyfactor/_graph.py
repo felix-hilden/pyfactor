@@ -5,6 +5,7 @@ import graphviz as gv
 
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from textwrap import dedent
 from typing import List, Dict, Set, Optional
 from ._visit import Line
@@ -313,13 +314,14 @@ def render(
     view
         after rendering, display with the default application
     """
-    if engine is not None:
-        source.engine = engine
-    source.render(
-        out_path,
-        format=format,
+    image_bytes = gv.pipe(
+        engine or source.engine,
+        format,
+        str(source).encode(),
         renderer=renderer,
         formatter=formatter,
-        view=view,
-        cleanup=True,
     )
+    out_path = Path(out_path).with_suffix('.' + format)
+    out_path.write_bytes(image_bytes)
+    if view:
+        gv.view(str(out_path))
