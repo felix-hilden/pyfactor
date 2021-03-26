@@ -120,7 +120,7 @@ def pyfactor(
     preprocess_kwargs = preprocess_kwargs or {}
     render_kwargs = render_kwargs or {}
 
-    graph_temp = graph_path or str(_cli.infer_name_from_sources(source_paths))
+    graph_temp = graph_path or str(_cli.infer_graph_from_sources(source_paths))
 
     if source_paths:
         parse(source_paths, graph_temp, **parse_kwargs)

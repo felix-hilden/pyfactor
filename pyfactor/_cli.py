@@ -15,7 +15,7 @@ group_mode.add_argument('sources', nargs='*', help=(
 group_mode.add_argument('--graph', '-g', nargs='?', default='-', const=None, help=(
     'write or read intermediate graph file. Graph output is disabled by default. '
     'If a value is specified, it is used as the file name. '
-    'If no value is provided, the name is inferred from the first name in SOURCES. '
+    'If no value is provided, the name is inferred from combining SOURCES. '
     'See SOURCES for more information.'
 ))
 group_mode.add_argument('--output', '-o', help=(
@@ -108,9 +108,10 @@ class ArgumentError(RuntimeError):
     """Invalid command line arguments given."""
 
 
-def infer_name_from_sources(sources: List[str]) -> Path:
+def infer_graph_from_sources(sources: List[str]) -> Path:
     """Infer graph name from sources."""
-    return Path(sources[0]).with_suffix('')
+    parts = [Path(s).stem for s in sources]
+    return Path('-'.join(parts)).with_suffix('.gv')
 
 
 def parse_names(sources: List[str], graph: Optional[str], output: Optional[str]):
@@ -126,16 +127,15 @@ def parse_names(sources: List[str], graph: Optional[str], output: Optional[str])
         o = output or str(Path(graph).with_suffix(''))
         return None, graph, o
 
-    inferred = infer_name_from_sources(sources)
+    inferred = infer_graph_from_sources(sources)
     if graph == '-':
-        o = output or str(inferred)
+        o = output or str(inferred.with_suffix(''))
         return sources, None, o
 
-    graph_inferred = inferred.with_suffix('.gv')
     if output == '-':
-        g = graph or str(graph_inferred)
+        g = graph or str(inferred)
         return sources, g, None
     else:
-        g = Path(graph) if graph else graph_inferred
+        g = Path(graph) if graph else inferred
         o = output or str(g.with_suffix(''))
         return sources, str(g), o
