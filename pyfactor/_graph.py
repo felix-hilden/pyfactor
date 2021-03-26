@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Dict, Set, Optional
+from warnings import warn
+from typing import List, Dict, Set, Optional, Tuple
 from ._visit import Line
 
 
@@ -151,9 +152,36 @@ def append_color(node, color: str) -> None:
         node['fillcolor'] = color
 
 
+def source_to_prefix(path: str) -> str:
+    """Generate graph node prefix from source location."""
+    path = Path(path).with_suffix('')
+    return str('.'.join(path.parts[path.is_absolute():])) + '.'
+
+
+class MissingNode(RuntimeWarning):
+    """Node could not be found."""
+
+
+class AmbiguousNode(RuntimeWarning):
+    """Node could not be determined unambiguously."""
+
+
+def guess_node(graph: nx.Graph, ref: str) -> Optional[str]:
+    """Determine an unambiguous node that ref refers to, or return None."""
+    potential = {node for node in graph.nodes if node.endswith(ref)}
+    if len(potential) == 1:
+        return potential.pop()
+    elif len(potential) == 0:
+        msg = f'Node `{ref}` could not be found!'
+        cls = MissingNode
+    else:
+        msg = f'Reference to `{ref}` is ambiguous!'
+        cls = AmbiguousNode
+    warn(msg, cls, stacklevel=4)
+
+
 def create_graph(
-    lines: List[Line],
-    node_prefix: str,
+    sources: List[Tuple[str, List[Line]]],
     skip_imports: bool = False,
     exclude: List[str] = None,
     root: str = None,
@@ -169,31 +197,45 @@ def create_graph(
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
-    nodes = merge_nodes(lines)
-    graph = nx.DiGraph(**graph_attrs)
-    for node in nodes:
-        name = node.name.center(12, " ")
-        attrs = {
-            'label': f'{name}\n{node.type.value}:{node.lineno_str}',
-            'shape': type_shape[node.type],
-            'style': 'filled',
-            'tooltip': dedent(node.docstring or f'{node.name} - no docstring'),
-        }
-        node_attrs.update(attrs)
-        graph.add_node(node_prefix + node.name, **node_attrs)
-        graph.add_edges_from([
-            (node_prefix + node.name, node_prefix + d) for d in node.deps
-        ], **edge_attrs)
 
-    for node in nodes:
-        if skip_imports and node.type == NodeType.import_ or node.name in exclude:
-            graph.remove_node(node_prefix + node.name)
+    graph = nx.DiGraph(**graph_attrs)
+    prefix_nodes = {source_to_prefix(s): merge_nodes(ln) for s, ln in sources}
+    for prefix, nodes in prefix_nodes.items():
+        for node in nodes:
+            name = node.name.center(12, " ")
+            attrs = {
+                'label': f'{name}\n{node.type.value}:{node.lineno_str}',
+                'shape': type_shape[node.type],
+                'style': 'filled',
+                'tooltip': dedent(node.docstring or f'{node.name} - no docstring'),
+            }
+            node_attrs.update(attrs)
+            graph.add_node(prefix + node.name, **node_attrs)
+        for node in nodes:
+            graph.add_edges_from([
+                (prefix + node.name, prefix + d) for d in node.deps
+            ], **edge_attrs)
+
+    for name in exclude:
+        resolved = guess_node(graph, name)
+        if resolved:
+            graph.remove_node(resolved)
+
+    for prefix, nodes in prefix_nodes.items():
+        for node in nodes:
+            if skip_imports and node.type == NodeType.import_:
+                graph.remove_node(prefix + node.name)
 
     conn = {}
     for node in graph.nodes:
         in_deg = len([0 for u, v in graph.in_edges(node) if u != node])
         out_deg = len([0 for u, v in graph.out_edges(node) if v != node])
         conn[node] = (in_deg, out_deg)
+
+    centralities = sorted(i + o for i, o in conn.values())
+
+    for node in graph.nodes:
+        in_deg, out_deg = conn[node]
 
         if in_deg == 0 and out_deg == 0:
             fill = ConnectivityColor.isolated
@@ -205,10 +247,7 @@ def create_graph(
             fill = ConnectivityColor.default
         graph.nodes[node]['fillcolor'] = fill.value
 
-    centralities = sorted(i + o for i, o in conn.values())
-
-    for node in graph.nodes:
-        c = conn[node][0] + conn[node][1]
+        c = in_deg + out_deg
         central = sum(c > ct for ct in centralities) / len(centralities)
         for level, color in centrality_color.items():
             if central > level:
@@ -225,6 +264,8 @@ def create_graph(
     i = -1
     graph_nodes = list(graph.nodes)
     removed_nodes = set()
+    collapse_exclude = {guess_node(graph, n) for n in collapse_exclude}
+    collapse_exclude = {n for n in collapse_exclude if n is not None}
     while i + 1 < len(graph_nodes):
         i += 1
         node = graph_nodes[i]
@@ -243,7 +284,7 @@ def create_graph(
                 break
         else:
             append_color(graph.nodes[node], ConnectivityColor.waypoint.value)
-            if collapse_waypoints and node[len(node_prefix):] not in collapse_exclude:
+            if collapse_waypoints and node not in collapse_exclude:
                 graph.nodes[node]['peripheries'] = 2
                 for comp in components:
                     if len(comp & out_nodes):
@@ -251,14 +292,16 @@ def create_graph(
                         graph.remove_nodes_from(comp)
 
     if root:
-        done = set()
-        potential = {node_prefix + root}
-        while potential:
-            n = potential.pop()
-            done.add(n)
-            succ = graph.successors(n)
-            potential.update({s for s in succ if s not in done})
-        graph = graph.subgraph(done)
+        root_ref = guess_node(graph, root)
+        if root_ref:
+            done = set()
+            potential = {root_ref}
+            while potential:
+                n = potential.pop()
+                done.add(n)
+                succ = graph.successors(n)
+                potential.update({s for s in succ if s not in done})
+            graph = graph.subgraph(done)
     return graph
 
 

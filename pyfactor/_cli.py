@@ -1,26 +1,27 @@
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import List, Optional
 
 parser = ArgumentParser(
     allow_abbrev=False, description='Script dependency visualiser.'
 )
 
 group_mode = parser.add_argument_group('Source and output')
-group_mode.add_argument('source', nargs='?', help=(
-    'source file name. If source was disabled by leaving it unspecified, '
+group_mode.add_argument('sources', nargs='*', help=(
+    'source file names. If sources was disabled by providing no names, '
     '--graph is used as direct input for rendering. Disabling two or more of '
-    'SOURCE, --graph and --output will return with an error code 1.'
+    'SOURCES, --graph and --output will return with an error code 1.'
 ))
 group_mode.add_argument('--graph', '-g', nargs='?', default='-', const=None, help=(
     'write or read intermediate graph file. Graph output is disabled by default. '
     'If a value is specified, it is used as the file name. '
-    'The file name is inferred from SOURCE if no value is provided. '
-    'See SOURCE for more information.'
+    'If no value is provided, the name is inferred from the first name in SOURCES. '
+    'See SOURCES for more information.'
 ))
 group_mode.add_argument('--output', '-o', help=(
     'render file name. By default the name is inferred from --graph. '
     'If the name is a single hyphen, render output is disabled '
-    'and a graph is written to --graph. See SOURCE for more information. '
+    'and a graph is written to --graph. See SOURCES for more information. '
     'NOTE: --format is appended to the name'
 ))
 group_mode.add_argument('--format', '-f', default='svg', help=(
@@ -107,28 +108,34 @@ class ArgumentError(RuntimeError):
     """Invalid command line arguments given."""
 
 
-def parse_names(source, graph, output):
+def infer_name_from_sources(sources: List[str]) -> Path:
+    """Infer graph name from sources."""
+    return Path(sources[0]).with_suffix('')
+
+
+def parse_names(sources: List[str], graph: Optional[str], output: Optional[str]):
     """Parse file names from arguments."""
-    if source is None and (graph is None or graph == '-'):
+    if not sources and (not graph or graph == '-'):
         raise ArgumentError('Pyfactor: no input specified!')
     if graph == '-' and output == '-':
         raise ArgumentError('Pyfactor: all output disabled!')
-    if source is None and output == '-':
+    if not sources and output == '-':
         raise ArgumentError('Pyfactor: only graph name specified!')
 
-    if source is None:
-        g = Path(graph)
-        o = Path(output) if output else g.with_suffix('')
-        return None, g, o
+    if not sources:
+        o = output or str(Path(graph).with_suffix(''))
+        return None, graph, o
 
-    s = Path(source)
+    inferred = infer_name_from_sources(sources)
     if graph == '-':
-        o = Path(output) if output else s.with_suffix('')
-        return s, None, o
+        o = output or str(inferred)
+        return sources, None, o
+
+    graph_inferred = inferred.with_suffix('.gv')
     if output == '-':
-        g = Path(graph) if graph else s.with_suffix('.gv')
-        return s, g, None
+        g = graph or str(graph_inferred)
+        return sources, g, None
     else:
-        g = Path(graph) if graph else s.with_suffix('.gv')
-        o = Path(output) if output else g.with_suffix('')
-        return s, g, o
+        g = Path(graph) if graph else graph_inferred
+        o = output or str(g.with_suffix(''))
+        return sources, str(g), o

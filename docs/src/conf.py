@@ -94,7 +94,7 @@ for example in gallery_examples:
     doc_path.write_text(doc_text, encoding='utf-8')
 
     pyfactor.pyfactor(
-        str(source_path), None, str(image_path),
+        [str(source_path)], None, str(image_path),
         parse_kwargs={'skip_imports': True},
         preprocess_kwargs={'stagger': 10, 'fanout': True, 'chain': 5},
         render_kwargs={'format': 'svg'},

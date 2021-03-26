@@ -16,7 +16,7 @@ from ._graph import create_legend, preprocess, render
 
 
 def parse(
-    source_path: str,
+    source_paths: _List[str],
     graph_path: str,
     skip_imports: bool = False,
     exclude: _List[str] = None,
@@ -32,8 +32,8 @@ def parse(
 
     Parameters
     ----------
-    source_path
-        path to Python source file to read
+    source_paths
+        paths to Python source files to read
     graph_path
         path to graph file to write
     skip_imports
@@ -53,13 +53,10 @@ def parse(
     edge_attrs
         Graphviz edge attributes (overrided by Pyfactor)
     """
-    source = _io.read_source(source_path)
-    lines = _visit.parse_lines(source)
-    path = _Path(source_path)
-    prefix = str('/'.join(path.parts[path.is_absolute():]))
+    sources = [_io.read_source(s) for s in source_paths]
+    parsed = [_visit.parse_lines(s) for s in sources]
     graph = _graph.create_graph(
-        lines,
-        node_prefix=prefix,
+        list(zip(source_paths, parsed)),
         skip_imports=skip_imports,
         exclude=exclude,
         root=root,
@@ -91,7 +88,7 @@ def legend(path: str, preprocess_kwargs: dict, render_kwargs: dict) -> None:
 
 
 def pyfactor(
-    source_path: str = None,
+    source_paths: _List[str] = None,
     graph_path: str = None,
     render_path: str = None,
     parse_kwargs: dict = None,
@@ -105,8 +102,8 @@ def pyfactor(
 
     Parameters
     ----------
-    source_path
-        Python source file
+    source_paths
+        Python source files
     graph_path
         graph definition file
     render_path
@@ -118,14 +115,15 @@ def pyfactor(
     render_kwargs
         keyword arguments for :func:`render`
     """
+    source_paths = source_paths or []
     parse_kwargs = parse_kwargs or {}
     preprocess_kwargs = preprocess_kwargs or {}
     render_kwargs = render_kwargs or {}
 
-    graph_temp = graph_path or str(_Path(source_path).with_suffix('.gv'))
+    graph_temp = graph_path or str(_cli.infer_name_from_sources(source_paths))
 
-    if source_path is not None:
-        parse(source_path, graph_temp, **parse_kwargs)
+    if source_paths:
+        parse(source_paths, graph_temp, **parse_kwargs)
 
     if render_path is not None:
         source = _io.read_graph(graph_temp)
@@ -173,23 +171,23 @@ def main() -> None:
 
     if args.legend:
         legend(args.legend, preprocess_kwargs, render_kwargs)
-    if args.source:
+    if args.sources:
         try:
-            source_path, graph_path, render_path = _cli.parse_names(
-                args.source, args.graph, args.output
+            source_paths, graph_path, render_path = _cli.parse_names(
+                args.sources, args.graph, args.output
             )
         except _cli.ArgumentError as e:
             print(str(e), file=_stderr)
             exit(1)
 
         pyfactor(
-            source_path,
+            source_paths,
             graph_path,
             render_path,
             parse_kwargs,
             preprocess_kwargs,
             render_kwargs,
         )
-    if not args.source and not args.legend:
+    if not args.sources and not args.legend:
         _cli.parser.print_help(_stderr)
         exit(1)
