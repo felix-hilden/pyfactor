@@ -122,7 +122,9 @@ class ImportVisitor(Visitor):
         for n in self.node.names:
             source_parts = []
             if isinstance(self.node, ast.ImportFrom):
-                source_parts += [''] * self.node.level + [self.node.module]
+                source_parts += [''] * self.node.level
+                if self.node.module:
+                    source_parts += [self.node.module]
             if n.asname:
                 name = n.asname
                 source_parts += [n.name]
