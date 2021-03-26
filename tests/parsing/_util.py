@@ -44,3 +44,16 @@ def docs_equal(func):
             err = f'Wrong doc! Expected\n{e}\ngot\n{d}'
             assert d == e or d is None and e is None, err
     return wrapper
+
+
+def import_equal(func):
+    @wraps(func)
+    def wrapper(self):
+        source, expected = func(self)
+        lines = parse_lines(source)
+        nodes = [name for line in lines for name in line.names]
+        assert len(nodes) == len(expected), 'Wrong number of nodes!'
+        for n, e in zip(nodes, expected):
+            assert n.name == e[0], f'Wrong name! Expected\n{e}\ngot\n{n}'
+            assert n.source == e[1], f'Wrong source! Expected\n{e}\ngot\n{n}'
+    return wrapper

@@ -118,12 +118,26 @@ class AnnAssignVisitor(AssignVisitor):
 
 class ImportVisitor(Visitor):
     def parse_names(self) -> List[Name]:
-        names = [self._get_name(n) for n in self.node.names]
-        return [Name(n, deps=set(), is_definition=True) for n in names]
-
-    @staticmethod
-    def _get_name(n):
-        return n.asname if n.asname else n.name.split('.')[0]
+        names = []
+        for n in self.node.names:
+            source_parts = []
+            if isinstance(self.node, ast.ImportFrom):
+                source_parts += [''] * self.node.level + [self.node.module]
+            if n.asname:
+                name = n.asname
+                source_parts += [n.name]
+            else:
+                name = n.name.split('.')[0]
+                source_parts += [name]
+            names.append(
+                Name(
+                    name,
+                    deps=set(),
+                    is_definition=True,
+                    source='.'.join(source_parts),
+                )
+            )
+        return names
 
 
 class TryVisitor(Visitor):

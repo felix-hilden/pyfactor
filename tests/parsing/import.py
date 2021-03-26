@@ -1,59 +1,65 @@
-from ._util import refs_equal
+from ._util import refs_equal, import_equal
 
 
 class TestImport:
-    @refs_equal
+    @import_equal
     def test_import_module(self):
         source = 'import a'
-        refs = [('a', set())]
+        refs = [('a', 'a')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_import_modules(self):
         source = 'import a, b'
-        refs = [('a', set()), ('b', set())]
+        refs = [('a', 'a'), ('b', 'b')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_import_module_as(self):
         source = 'import a as b'
-        refs = [('b', set())]
+        refs = [('b', 'a')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_import_modules_as(self):
         source = 'import a as b, c as d'
-        refs = [('b', set()), ('d', set())]
+        refs = [('b', 'a'), ('d', 'c')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_import_submodule(self):
         source = 'import a.b'
-        refs = [('a', set())]
+        refs = [('a', 'a')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_import_submodule_as(self):
         source = 'import a.b as c'
-        refs = [('c', set())]
+        refs = [('c', 'a.b')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_from_import_module(self):
         source = 'from a import b'
-        refs = [('b', set())]
+        refs = [('b', 'a.b')]
         return source, refs
 
-    @refs_equal
+    @import_equal
     def test_from_import_module_as(self):
         source = 'from a import b as c'
-        refs = [('c', set())]
+        refs = [('c', 'a.b')]
         return source, refs
 
-    @refs_equal
+    @import_equal
+    def test_from_import_modules(self):
+        source = 'from a import b, c'
+        refs = [('b', 'a.b'), ('c', 'a.c')]
+        return source, refs
+
+    @import_equal
     def test_import_modules_mixed(self):
         source = 'import a as b, c'
-        refs = [('b', set()), ('c', set())]
+        refs = [('b', 'a'), ('c', 'c')]
         return source, refs
 
     @refs_equal
