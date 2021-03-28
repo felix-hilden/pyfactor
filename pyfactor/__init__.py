@@ -53,10 +53,11 @@ def parse(
     edge_attrs
         Graphviz edge attributes (overrided by Pyfactor)
     """
-    sources = [_io.read_source(s) for s in source_paths]
-    parsed = [_visit.parse_lines(s) for s in sources]
+    sources = _io.resolve_sources(source_paths)
+    sources_text = [_io.read_source(s.file) for s in sources]
+    parsed = [_visit.parse_lines(s) for s in sources_text]
     graph = _graph.create_graph(
-        list(zip(source_paths, parsed)),
+        list(zip(sources, parsed)),
         skip_imports=skip_imports,
         exclude=exclude,
         root=root,

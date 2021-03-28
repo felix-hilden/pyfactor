@@ -10,6 +10,7 @@ from textwrap import dedent
 from warnings import warn
 from typing import List, Dict, Set, Optional, Tuple
 from ._visit import Line
+from ._io import Source
 
 
 class NodeType(Enum):
@@ -152,9 +153,9 @@ def append_color(node, color: str) -> None:
         node['fillcolor'] = color
 
 
-def source_to_prefix(path: str) -> str:
+def source_to_prefix(path: Path) -> str:
     """Generate graph node prefix from source location."""
-    path = Path(path).with_suffix('')
+    path = path.with_suffix('')
     return str('.'.join(path.parts[path.is_absolute():])) + '.'
 
 
@@ -181,7 +182,7 @@ def guess_node(graph: nx.Graph, ref: str) -> Optional[str]:
 
 
 def create_graph(
-    sources: List[Tuple[str, List[Line]]],
+    sources: List[Tuple[Source, List[Line]]],
     skip_imports: bool = False,
     exclude: List[str] = None,
     root: str = None,
@@ -199,7 +200,7 @@ def create_graph(
     edge_attrs = edge_attrs or {}
 
     graph = nx.DiGraph(**graph_attrs)
-    prefix_nodes = {source_to_prefix(s): merge_nodes(ln) for s, ln in sources}
+    prefix_nodes = {source_to_prefix(s.file): merge_nodes(ln) for s, ln in sources}
     for prefix, nodes in prefix_nodes.items():
         for node in nodes:
             name = node.name.center(12, " ")
