@@ -153,12 +153,6 @@ def append_color(node, color: str) -> None:
         node['fillcolor'] = color
 
 
-def source_to_prefix(path: Path) -> str:
-    """Generate graph node prefix from source location."""
-    path = path.with_suffix('')
-    return str('.'.join(path.parts[path.is_absolute():])) + '.'
-
-
 class MissingNode(RuntimeWarning):
     """Node could not be found."""
 
@@ -200,7 +194,7 @@ def create_graph(
     edge_attrs = edge_attrs or {}
 
     graph = nx.DiGraph(**graph_attrs)
-    prefix_nodes = {source_to_prefix(s.file): merge_nodes(ln) for s, ln in sources}
+    prefix_nodes = {s.name + '.': merge_nodes(ln) for s, ln in sources}
     for prefix, nodes in prefix_nodes.items():
         for node in nodes:
             name = node.name.center(12, " ")
