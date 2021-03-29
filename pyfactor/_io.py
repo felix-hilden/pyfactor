@@ -21,8 +21,7 @@ def resolve_sources(paths: List[str]) -> List[Source]:
     packages = []
     importable = []
     for path in paths:
-        p = Path(path).resolve()
-        p = p if p.is_absolute() else Path.cwd() / p
+        p = make_absolute(Path(path).resolve())
         if p.is_dir():
             packages.append(p)
         elif p.exists():

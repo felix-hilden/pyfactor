@@ -108,9 +108,14 @@ class ArgumentError(RuntimeError):
     """Invalid command line arguments given."""
 
 
+def make_absolute(path: Path) -> Path:
+    """Make absolute path out of a potentially relative one."""
+    return path if path.is_absolute() else Path.cwd() / path
+
+
 def infer_graph_from_sources(sources: List[str]) -> Path:
     """Infer graph name from sources."""
-    parts = [Path(s).stem for s in sources]
+    parts = [make_absolute(Path(s)).stem for s in sources]
     return Path('-'.join(parts)).with_suffix('.gv')
 
 
