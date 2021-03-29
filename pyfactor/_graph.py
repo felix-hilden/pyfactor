@@ -198,11 +198,13 @@ def create_graph(
     for prefix, nodes in prefix_nodes.items():
         for node in nodes:
             name = node.name.center(12, " ")
+            doc = node.docstring or f'{node.name} - no docstring'
+            doc = dedent(doc).replace('\n', '\\n')
             attrs = {
-                'label': rf'{name}\n{node.type.value}:{node.lineno_str}',
+                'label': f'{name}\\n{node.type.value}:{node.lineno_str}',
                 'shape': type_shape[node.type],
                 'style': 'filled',
-                'tooltip': dedent(node.docstring or f'{node.name} - no docstring'),
+                'tooltip': doc,
             }
             node_attrs.update(attrs)
             graph.add_node(prefix + node.name, **node_attrs)
