@@ -1,5 +1,4 @@
 import graphviz as gv
-import networkx as nx
 
 from dataclasses import dataclass
 from typing import List
@@ -65,9 +64,10 @@ def read_source(path: Path) -> str:
     return path.read_text(encoding='utf-8')
 
 
-def write_graph(graph: nx.DiGraph, path: str) -> None:
-    """Write NetworkX graph to Graphviz graph file."""
-    nx.nx_pydot.write_dot(graph, path)
+def write_graph(graph: gv.Digraph, path: str) -> None:
+    """Write graph to Graphviz dot file."""
+    with open(path, 'w') as f:
+        f.write(str(graph.source))
 
 
 def read_graph(path: str) -> gv.Source:

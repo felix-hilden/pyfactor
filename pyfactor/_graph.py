@@ -148,7 +148,7 @@ def append_color(node, color: str) -> None:
     """Append or replace default color."""
     if node['fillcolor'] != ConnectivityColor.default.value:
         node['fillcolor'] = node['fillcolor'] + ';0.5:' + color
-        node['gradientangle'] = 305
+        node['gradientangle'] = '305'
     else:
         node['fillcolor'] = color
 
@@ -185,7 +185,7 @@ def create_graph(
     graph_attrs: Dict[str, str] = None,
     node_attrs: Dict[str, str] = None,
     edge_attrs: Dict[str, str] = None,
-) -> nx.DiGraph:
+) -> gv.Digraph:
     """Create and populate a graph from references."""
     exclude = set(exclude or [])
     collapse_exclude = set(collapse_exclude or [])
@@ -199,7 +199,7 @@ def create_graph(
         for node in nodes:
             name = node.name.center(12, " ")
             attrs = {
-                'label': f'{name}\n{node.type.value}:{node.lineno_str}',
+                'label': rf'{name}\n{node.type.value}:{node.lineno_str}',
                 'shape': type_shape[node.type],
                 'style': 'filled',
                 'tooltip': dedent(node.docstring or f'{node.name} - no docstring'),
@@ -297,7 +297,47 @@ def create_graph(
                 succ = graph.successors(n)
                 potential.update({s for s in succ if s not in done})
             graph = graph.subgraph(done)
-    return graph
+
+    # Construct module hierarchy
+    hierarchy = Level({}, {})
+    for node, data in graph.nodes.items():
+        parts = node.split('.')
+        tmp = hierarchy
+        for part in parts[:-1]:
+            if part not in tmp.sub:
+                tmp.sub[part] = Level({}, {})
+            tmp = tmp.sub[part]
+        tmp.names[parts[-1]] = data
+
+    gv_graph = gv.Digraph()
+    make_subgraphs(gv_graph, hierarchy, [])
+    for from_, to, data in graph.edges.data():
+        gv_graph.edge(from_, to, **data)
+    return gv_graph
+
+
+@dataclass
+class Level:
+    """Subgraph level."""
+
+    sub: Dict[str, 'Level']
+    names: Dict[str, Dict]
+
+
+def make_subgraphs(
+    graph: gv.Digraph, hierarchy: Level, location: List
+) -> None:
+    """Recursively construct subgraph hierarchy."""
+    for name, data in hierarchy.names.items():
+        graph.node('.'.join(location + [name]), **data)
+
+    for name, sub in hierarchy.sub.items():
+        new_loc = location + [name]
+        loc_str = '.'.join(new_loc)
+        name = 'cluster_' + loc_str
+        attrs = {'label': loc_str}
+        with graph.subgraph(name=name, graph_attr=attrs) as subgraph:
+            make_subgraphs(subgraph, sub, new_loc)
 
 
 def preprocess(
