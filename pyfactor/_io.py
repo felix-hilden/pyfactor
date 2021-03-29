@@ -55,7 +55,7 @@ def resolve_sources(paths: List[str]) -> List[Source]:
             if path.stem == '__init__':
                 name = '.'.join(rel.parent.parts)
             else:
-                name = '.'.join(rel.parts)
+                name = '.'.join(rel.with_suffix('').parts)
             sources.append(Source(path, name))
     return sources
 
