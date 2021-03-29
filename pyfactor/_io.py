@@ -44,6 +44,8 @@ def resolve_sources(paths: List[str]) -> List[Source]:
     sources = [Source(s, s.stem) for s in singles]
     for package in packages:
         for path in package.glob('**/*.py'):
+            if not path.with_name('__init__.py').exists():
+                continue
             rel = path.relative_to(package.parent)
             if path.stem == '__init__':
                 name = '.'.join(rel.parent.parts)
