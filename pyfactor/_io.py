@@ -6,7 +6,7 @@ from typing import List
 from pathlib import Path
 from importlib.util import find_spec
 
-from ._cli import ArgumentError
+from ._cli import ArgumentError, make_absolute
 
 
 @dataclass
@@ -35,6 +35,12 @@ def resolve_sources(paths: List[str]) -> List[Source]:
                 'Expected a file, a directory or an importable package.'
             )
             raise ArgumentError(msg)
+
+    if len(singles) == 0 and len(packages) == 1:
+        if not (packages[0] / '__init__.py').exists():
+            folder = packages[0]
+            singles = list(folder.glob('*.py'))
+            packages = [path.parent for path in folder.glob('*/__init__.py')]
 
     local_sources = singles + packages
     if not all(p.parent == local_sources[0].parent for p in local_sources[1:]):
