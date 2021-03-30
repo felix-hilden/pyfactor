@@ -14,6 +14,17 @@ class Source:
     name: str
 
 
+def find_package_top(file: Path):
+    """Find package top directory."""
+    while True:
+        if len(file.parts) == 1:
+            raise ValueError('Package top was not found!')
+        if not file.with_name('__init__.py').exists():
+            break
+        file = file.parent
+    return file
+
+
 def resolve_sources(paths: List[str]) -> List[Source]:
     """Resolve sources from paths and importable modules."""
     singles = []
@@ -50,7 +61,7 @@ def resolve_sources(paths: List[str]) -> List[Source]:
         for path in package.glob('**/*.py'):
             if not path.with_name('__init__.py').exists():
                 continue
-            rel = path.relative_to(package.parent)
+            rel = path.relative_to(find_package_top(package).parent)
             if path.stem == '__init__':
                 name = '.'.join(rel.parent.parts)
             else:
