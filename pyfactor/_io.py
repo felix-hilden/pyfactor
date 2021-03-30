@@ -55,7 +55,9 @@ def resolve_sources(paths: List[str]) -> List[Source]:
     if not all(p.parent == local_sources[0].parent for p in local_sources[1:]):
         raise ArgumentError('Pyfactor: sources are in different directories!')
 
-    packages.extend([find_spec(i).submodule_search_locations for i in importable])
+    for i in importable:
+        packages.extend([Path(p) for p in find_spec(i).submodule_search_locations])
+
     sources = [Source(s, s.stem) for s in singles]
     for package in packages:
         for path in package.glob('**/*.py'):
