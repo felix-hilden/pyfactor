@@ -36,7 +36,9 @@ group_mode.add_argument(
 
 group_parse = parser.add_argument_group('Parsing options')
 group_parse.add_argument(
-    '--skip-imports', '-si', action='store_true', help='do not visualise imports'
+    '--skip-external', '-se', action='store_true', help=(
+        'do not visualise imports to external modules'
+    )
 )
 group_parse.add_argument(
     '--exclude', '-e', action='append', help='exclude nodes in the source'

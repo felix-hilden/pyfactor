@@ -18,7 +18,7 @@ from ._graph import create_legend, preprocess, render
 def parse(
     source_paths: _List[str],
     graph_path: str,
-    skip_imports: bool = False,
+    skip_external: bool = False,
     exclude: _List[str] = None,
     root: str = None,
     collapse_waypoints: bool = False,
@@ -36,8 +36,8 @@ def parse(
         paths to Python source files to read
     graph_path
         path to graph file to write
-    skip_imports
-        do not visualise imports (reducing clutter)
+    skip_external
+        do not visualise imports to external modules (reducing clutter)
     exclude
         exclude nodes in the graph
     root
@@ -58,7 +58,7 @@ def parse(
     parsed = [_visit.parse_lines(s) for s in sources_text]
     graph = _graph.create_graph(
         list(zip(sources, parsed)),
-        skip_imports=skip_imports,
+        skip_external=skip_external,
         exclude=exclude,
         root=root,
         collapse_waypoints=collapse_waypoints,
@@ -149,7 +149,7 @@ def main() -> None:
         exit(0)
 
     parse_kwargs = {
-        'skip_imports': args.skip_imports,
+        'skip_external': args.skip_external,
         'exclude': args.exclude,
         'collapse_waypoints': args.collapse_waypoints,
         'collapse_exclude': args.collapse_exclude,

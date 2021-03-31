@@ -55,7 +55,7 @@ def gallery_doc(name: str, url: str) -> str:
 {name}
 {'=' * len(name)}
 {summary}
-with :code:`pyfactor source.py --skip-imports`.
+with :code:`pyfactor source.py --skip-external`.
 Click the image to enlarge.
 
 .. image:: {name}.svg
@@ -95,7 +95,7 @@ for example in gallery_examples:
 
     pyfactor.pyfactor(
         [str(source_path)], None, str(image_path),
-        parse_kwargs={'skip_imports': True},
+        parse_kwargs={'skip_external': True},
         preprocess_kwargs={'stagger': 10, 'fanout': True, 'chain': 5},
         render_kwargs={'format': 'svg'},
     )

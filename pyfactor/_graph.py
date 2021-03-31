@@ -215,7 +215,7 @@ def gen_cluster_nodes(graph: nx.DiGraph, levels: str) -> None:
 
 def create_graph(
     sources: List[Tuple[Source, List[Line]]],
-    skip_imports: bool = False,
+    skip_external: bool = False,
     exclude: List[str] = None,
     root: str = None,
     collapse_waypoints: bool = False,
@@ -288,10 +288,19 @@ def create_graph(
         if resolved:
             graph.remove_node(resolved)
 
-    if skip_imports:
+    if skip_external:
+        internal = {p.split('.')[0] for p in prefix_nodes.keys()}
         removed = set()
         for node, data in graph.nodes.items():
-            if data['shape'] == type_shape[NodeType.import_]:
+            if not data['shape'] == type_shape[NodeType.import_]:
+                continue
+            if all(v.split('.')[0] not in internal for _, v in graph.out_edges(node)):
+                removed.add(node)
+        graph.remove_nodes_from(removed)
+
+        removed = set()
+        for node in graph.nodes:
+            if node.split('.')[0] not in internal:
                 removed.add(node)
         graph.remove_nodes_from(removed)
 
