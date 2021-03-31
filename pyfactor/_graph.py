@@ -238,7 +238,7 @@ def create_graph(
     }
     for prefix, nodes in prefix_nodes.items():
         for node in nodes:
-            name = node.name.center(12, " ")
+            name = node.name.center(12, ' ')
             doc = node.docstring or f'{node.name} - no docstring'
             doc = dedent(doc).replace('\n', '\\n')
             attrs = {
@@ -410,7 +410,9 @@ def make_subgraphs(
         new_loc = location + [name]
         loc_str = '.'.join(new_loc)
         name = 'cluster_' + loc_str
-        attrs = {'label': loc_str}
+        attrs = {
+            'label': loc_str.center(12, ' '), 'fontsize': '22.0', 'penwidth': '2.5'
+        }
         with graph.subgraph(name=name, graph_attr=attrs) as subgraph:
             make_subgraphs(subgraph, sub, new_loc)
 
