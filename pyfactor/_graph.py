@@ -45,9 +45,28 @@ class GraphNode:
     type: NodeType
     lineno_str: str
     docstring: Optional[str]
+    import_sources: Set[str]
 
 
-def merge_nodes(lines: List[Line]) -> List[GraphNode]:
+def resolve_import(import_: str, location: str, file: Path) -> str:
+    """Resolve potentially relative import inside a package."""
+    if not import_.startswith('.'):
+        return import_
+
+    import_parts = import_.split('.')
+    up_levels = len([p for p in import_parts if p == ''])
+    import_down = import_parts[up_levels:]
+
+    if file.stem == '__init__':
+        up_levels -= 1
+    location_parts = location.split('.')
+
+    # up_levels can be 0
+    location_parts = location_parts[:-up_levels or None]
+    return '.'.join(location_parts + import_down)
+
+
+def merge_nodes(location: str, file: Path, lines: List[Line]) -> List[GraphNode]:
     """Merge name definitions and references on lines to unique graph nodes."""
     nodes = {}
     for line in lines:
@@ -58,7 +77,12 @@ def merge_nodes(lines: List[Line]) -> List[GraphNode]:
                 get_type(line.ast_node),
                 str(line.ast_node.lineno),
                 line.docstring,
+                set(),
             )
+            if name.source:
+                node.import_sources.add(
+                    resolve_import(name.source, location, file)
+                )
             if node.name not in nodes:
                 nodes[node.name] = [node, name.is_definition]
             else:
@@ -71,6 +95,7 @@ def merge_nodes(lines: List[Line]) -> List[GraphNode]:
                     merge.type = NodeType.multiple
                 if name.is_definition:
                     nodes[node.name][1] = True
+                merge.import_sources = merge.import_sources | node.import_sources
 
     return [node for node, _ in nodes.values()]
 
@@ -175,6 +200,19 @@ def guess_node(graph: nx.Graph, ref: str) -> Optional[str]:
     warn(msg, cls, stacklevel=4)
 
 
+cluster_invis_node = 'cluster-invis-node'
+
+
+def gen_cluster_nodes(graph: nx.DiGraph, levels: str) -> None:
+    """Generate invis cluster nodes."""
+    parts = levels.split()
+    for i in range(len(parts)):
+        level = '.'.join(parts[:i + 1])
+        node = level + '.' + cluster_invis_node
+        if not graph.has_node(node):
+            graph.add_node(node, shape='point', style='invis')
+
+
 def create_graph(
     sources: List[Tuple[Source, List[Line]]],
     skip_imports: bool = False,
@@ -192,9 +230,12 @@ def create_graph(
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
+    graph_attrs.update({'compound': 'true'})
 
-    graph = nx.DiGraph(**graph_attrs)
-    prefix_nodes = {s.name + '.': merge_nodes(ln) for s, ln in sources}
+    graph = nx.DiGraph()
+    prefix_nodes = {
+        s.name + '.': merge_nodes(s.name, s.file, ln) for s, ln in sources
+    }
     for prefix, nodes in prefix_nodes.items():
         for node in nodes:
             name = node.name.center(12, " ")
@@ -206,22 +247,53 @@ def create_graph(
                 'style': 'filled',
                 'tooltip': doc,
             }
-            node_attrs.update(attrs)
-            graph.add_node(prefix + node.name, **node_attrs)
-        for node in nodes:
+            n_attrs = node_attrs.copy()
+            n_attrs.update(attrs)
+            graph.add_node(prefix + node.name, **n_attrs)
             graph.add_edges_from([
                 (prefix + node.name, prefix + d) for d in node.deps
             ], **edge_attrs)
+        gen_cluster_nodes(graph, prefix[:-1])
+
+    import_sources = set()
+    for _, nodes in prefix_nodes.items():
+        for node in nodes:
+            import_sources.update(node.import_sources)
+    for source in import_sources:
+        if '.' in source:
+            source = '.'.join(source.split('.')[:-1])
+        gen_cluster_nodes(graph, source)
+
+    for prefix, nodes in prefix_nodes.items():
+        for node in nodes:
+            if not node.import_sources:
+                continue
+            for s in node.import_sources:
+                if graph.has_node(s + '.' + cluster_invis_node):
+                    e_attrs = edge_attrs.copy()
+                    e_attrs.update({'lhead': 'cluster_' + s})
+                    graph.add_edge(
+                        prefix + node.name, s + '.' + cluster_invis_node, **e_attrs
+                    )
+                    continue
+
+                if not graph.has_node(s):
+                    graph.add_node(
+                        s, label=s.split('.')[-1], shape=type_shape[NodeType.import_]
+                    )
+                graph.add_edge(prefix + node.name, s, **edge_attrs)
 
     for name in exclude:
         resolved = guess_node(graph, name)
         if resolved:
             graph.remove_node(resolved)
 
-    for prefix, nodes in prefix_nodes.items():
-        for node in nodes:
-            if skip_imports and node.type == NodeType.import_:
-                graph.remove_node(prefix + node.name)
+    if skip_imports:
+        removed = set()
+        for node, data in graph.nodes.items():
+            if data['shape'] == type_shape[NodeType.import_]:
+                removed.add(node)
+        graph.remove_nodes_from(removed)
 
     conn = {}
     for node in graph.nodes:
@@ -312,6 +384,7 @@ def create_graph(
         tmp.names[parts[-1]] = data
 
     gv_graph = gv.Digraph()
+    gv_graph.attr(**graph_attrs)
     make_subgraphs(gv_graph, hierarchy, [])
     for from_, to, data in graph.edges.data():
         gv_graph.edge(from_, to, **data)
