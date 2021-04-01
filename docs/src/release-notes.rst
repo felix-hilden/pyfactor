@@ -4,6 +4,7 @@ Release notes
 =============
 Unreleased
 ----------
+- Add multi-file, recursive and importable module analysis (:issue:`5`)
 - Split CLI file name specification to separate arguments (:issue:`5`)
 - Add option to specify graph root (:issue:`14`)
 
