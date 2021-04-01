@@ -137,7 +137,7 @@ def create_legend() -> gv.Source:
     graph = gv.Digraph()
 
     with graph.subgraph(name='cluster1') as s:
-        s.attr(label='Types')
+        s.attr(label='Node shapes')
         s.node_attr.update(style='filled', fillcolor='#FFFFFF')
         types = [
             ('variable', NodeType.var),
@@ -151,21 +151,28 @@ def create_legend() -> gv.Source:
             s.node(f'{name} ({t.value})', shape=type_shape[t])
 
     with graph.subgraph(name='cluster2') as s:
-        s.attr(label='Colours')
+        s.attr(label='Node colours')
         s.node_attr.update(style='filled')
         for e in ConnectivityColor:
             s.node(e.name, fillcolor=e.value)
         for deg, col in centrality_color.items():
             s.node(f'Centrality {deg}', fillcolor=col)
-        s.node('conn1', label=' ')
-        s.node('conn2', label=' ')
-        s.edge('conn1', 'conn2', label='dependency')
-        s.node('bridge1', label=' ')
-        s.node('bridge2', label=' ')
-        s.edge('bridge1', 'bridge2', label='bridge', color=MiscColor.bridge.value)
         s.node(
             'collapsed', peripheries='2', fillcolor=ConnectivityColor.waypoint.value
         )
+
+    with graph.subgraph(name='cluster3') as s:
+        s.node_attr.update(style='filled')
+        s.attr(label='Edge styles')
+        s.node('conn1', label=' ')
+        s.node('conn2', label=' ')
+        s.edge('conn1', 'conn2', label='  default')
+        s.node('bridge1', label=' ')
+        s.node('bridge2', label=' ')
+        s.edge('bridge1', 'bridge2', label='  bridge', color=MiscColor.bridge.value)
+        s.node('imp1', label=' ')
+        s.node('imp2', label=' ')
+        s.edge('imp1', 'imp2', label='  import', style='dashed')
 
     return gv.Source(graph.source)
 
