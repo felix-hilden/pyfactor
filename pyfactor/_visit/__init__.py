@@ -2,6 +2,11 @@ import ast
 
 from typing import List, Set, Iterable, Tuple, Optional
 from .base import Visitor, Name, Scope, Line
+from .._io import Source
+
+
+class ParsingError(Exception):
+    """Error in source parsing."""
 
 
 def multi_union(sets: Iterable[Set]) -> Set:
@@ -65,8 +70,8 @@ def assign_target_name(node) -> Name:
         name.is_definition = False
         return name
     else:
-        raise ValueError(
-            f'Parsing error on line {node.lineno}: unknown assignment type!'
+        raise ParsingError(
+            f'Error on line {node.lineno}: unknown assignment type!'
         )
 
 
@@ -118,8 +123,28 @@ class AnnAssignVisitor(AssignVisitor):
 
 class ImportVisitor(Visitor):
     def parse_names(self) -> List[Name]:
-        names = [n.name if n.asname is None else n.asname for n in self.node.names]
-        return [Name(n, deps=set(), is_definition=True) for n in names]
+        names = []
+        for n in self.node.names:
+            source_parts = []
+            if isinstance(self.node, ast.ImportFrom):
+                source_parts += [''] * self.node.level
+                if self.node.module:
+                    source_parts += [self.node.module]
+            if n.asname:
+                name = n.asname
+                source_parts += [n.name]
+            else:
+                name = n.name.split('.')[0]
+                source_parts += [name]
+            names.append(
+                Name(
+                    name,
+                    deps=set(),
+                    is_definition=True,
+                    source='.'.join(source_parts),
+                )
+            )
+        return names
 
 
 class TryVisitor(Visitor):
@@ -429,10 +454,14 @@ def parse_no_scope(visitor: Visitor) -> List[Line]:
     return [line for line in lines if line.names or line.docstring]
 
 
-def parse_lines(source: str) -> List[Line]:
+def parse_lines(source: Source) -> List[Line]:
     """Parse name definitions and references on lines from source."""
-    tree = ast.parse(source)
-    lines = parse_no_scope(cast(tree))
+    tree = ast.parse(source.content)
+    try:
+        lines = parse_no_scope(cast(tree))
+    except ParsingError as original:
+        msg = f'Error in {source.name} parsing {source.file}: {str(original)}'
+        raise ParsingError(msg) from original
     defined_names = {n.name for line in lines for n in line.names}
 
     for line in lines:

@@ -11,6 +11,7 @@ class Name:
     name: str
     deps: Set[str]
     is_definition: bool
+    source: str = None
 
 
 @dataclass

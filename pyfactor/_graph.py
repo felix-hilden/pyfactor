@@ -7,8 +7,11 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Dict, Set, Optional
+from warnings import warn
+from typing import List, Dict, Set, Optional, Tuple
 from ._visit import Line
+from ._io import Source
+from ._cli import ArgumentError
 
 
 class NodeType(Enum):
@@ -43,9 +46,28 @@ class GraphNode:
     type: NodeType
     lineno_str: str
     docstring: Optional[str]
+    import_sources: Set[str]
 
 
-def merge_nodes(lines: List[Line]) -> List[GraphNode]:
+def resolve_import(import_: str, location: str, file: Path) -> str:
+    """Resolve potentially relative import inside a package."""
+    if not import_.startswith('.'):
+        return import_
+
+    import_parts = import_.split('.')
+    up_levels = len([p for p in import_parts if p == ''])
+    import_down = import_parts[up_levels:]
+
+    if file.stem == '__init__':
+        up_levels -= 1
+    location_parts = location.split('.')
+
+    # up_levels can be 0
+    location_parts = location_parts[:-up_levels or None]
+    return '.'.join(location_parts + import_down)
+
+
+def merge_nodes(location: str, file: Path, lines: List[Line]) -> List[GraphNode]:
     """Merge name definitions and references on lines to unique graph nodes."""
     nodes = {}
     for line in lines:
@@ -56,7 +78,12 @@ def merge_nodes(lines: List[Line]) -> List[GraphNode]:
                 get_type(line.ast_node),
                 str(line.ast_node.lineno),
                 line.docstring,
+                set(),
             )
+            if name.source:
+                node.import_sources.add(
+                    resolve_import(name.source, location, file)
+                )
             if node.name not in nodes:
                 nodes[node.name] = [node, name.is_definition]
             else:
@@ -69,6 +96,7 @@ def merge_nodes(lines: List[Line]) -> List[GraphNode]:
                     merge.type = NodeType.multiple
                 if name.is_definition:
                     nodes[node.name][1] = True
+                merge.import_sources = merge.import_sources | node.import_sources
 
     return [node for node, _ in nodes.values()]
 
@@ -102,7 +130,6 @@ centrality_color = {
     0.95: '#FFA0A0',
     0.68: '#FFE0E0',
 }
-node_prefix = 'pf-'
 
 
 def create_legend() -> gv.Source:
@@ -110,7 +137,7 @@ def create_legend() -> gv.Source:
     graph = gv.Digraph()
 
     with graph.subgraph(name='cluster1') as s:
-        s.attr(label='Types')
+        s.attr(label='Node shapes')
         s.node_attr.update(style='filled', fillcolor='#FFFFFF')
         types = [
             ('variable', NodeType.var),
@@ -124,21 +151,28 @@ def create_legend() -> gv.Source:
             s.node(f'{name} ({t.value})', shape=type_shape[t])
 
     with graph.subgraph(name='cluster2') as s:
-        s.attr(label='Colours')
+        s.attr(label='Node colours')
         s.node_attr.update(style='filled')
         for e in ConnectivityColor:
             s.node(e.name, fillcolor=e.value)
         for deg, col in centrality_color.items():
             s.node(f'Centrality {deg}', fillcolor=col)
-        s.node('conn1', label=' ')
-        s.node('conn2', label=' ')
-        s.edge('conn1', 'conn2', label='dependency')
-        s.node('bridge1', label=' ')
-        s.node('bridge2', label=' ')
-        s.edge('bridge1', 'bridge2', label='bridge', color=MiscColor.bridge.value)
         s.node(
             'collapsed', peripheries='2', fillcolor=ConnectivityColor.waypoint.value
         )
+
+    with graph.subgraph(name='cluster3') as s:
+        s.node_attr.update(style='filled')
+        s.attr(label='Edge styles')
+        s.node('conn1', label=' ')
+        s.node('conn2', label=' ')
+        s.edge('conn1', 'conn2', label='  default')
+        s.node('bridge1', label=' ')
+        s.node('bridge2', label=' ')
+        s.edge('bridge1', 'bridge2', label='  bridge', color=MiscColor.bridge.value)
+        s.node('imp1', label=' ')
+        s.node('imp2', label=' ')
+        s.edge('imp1', 'imp2', label='  import', style='dashed')
 
     return gv.Source(graph.source)
 
@@ -147,14 +181,50 @@ def append_color(node, color: str) -> None:
     """Append or replace default color."""
     if node['fillcolor'] != ConnectivityColor.default.value:
         node['fillcolor'] = node['fillcolor'] + ';0.5:' + color
-        node['gradientangle'] = 305
+        node['gradientangle'] = '305'
     else:
         node['fillcolor'] = color
 
 
+class MissingNode(RuntimeWarning):
+    """Node could not be found."""
+
+
+class AmbiguousNode(RuntimeWarning):
+    """Node could not be determined unambiguously."""
+
+
+def guess_node(graph: nx.Graph, ref: str) -> Optional[str]:
+    """Determine an unambiguous node that ref refers to, or return None."""
+    potential = {node for node in graph.nodes if node.endswith(ref)}
+    if len(potential) == 1:
+        return potential.pop()
+    elif len(potential) == 0:
+        msg = f'Node `{ref}` could not be found!'
+        cls = MissingNode
+    else:
+        msg = f'Reference to `{ref}` is ambiguous!'
+        cls = AmbiguousNode
+    warn(msg, cls, stacklevel=4)
+
+
+cluster_invis_node = 'cluster-invis-node'
+
+
+def gen_cluster_nodes(graph: nx.DiGraph, levels: str) -> None:
+    """Generate invis cluster nodes."""
+    parts = levels.split()
+    for i in range(len(parts)):
+        level = '.'.join(parts[:i + 1])
+        node = level + '.' + cluster_invis_node
+        if not graph.has_node(node):
+            graph.add_node(node, shape='point', style='invis')
+
+
 def create_graph(
-    lines: List[Line],
-    skip_imports: bool = False,
+    sources: List[Tuple[Source, List[Line]]],
+    skip_external: bool = False,
+    imports: str = 'interface',
     exclude: List[str] = None,
     root: str = None,
     collapse_waypoints: bool = False,
@@ -162,38 +232,132 @@ def create_graph(
     graph_attrs: Dict[str, str] = None,
     node_attrs: Dict[str, str] = None,
     edge_attrs: Dict[str, str] = None,
-) -> nx.DiGraph:
+) -> gv.Digraph:
     """Create and populate a graph from references."""
     exclude = set(exclude or [])
     collapse_exclude = set(collapse_exclude or [])
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
-    nodes = merge_nodes(lines)
-    graph = nx.DiGraph(**graph_attrs)
-    for node in nodes:
-        name = node.name.center(12, " ")
-        attrs = {
-            'label': f'{name}\n{node.type.value}:{node.lineno_str}',
-            'shape': type_shape[node.type],
-            'style': 'filled',
-            'tooltip': dedent(node.docstring or f'{node.name} - no docstring'),
-        }
-        node_attrs.update(attrs)
-        graph.add_node(node_prefix + node.name, **node_attrs)
-        graph.add_edges_from([
-            (node_prefix + node.name, node_prefix + d) for d in node.deps
-        ], **edge_attrs)
+    graph_attrs.update({
+        'compound': 'true',
+        'newrank': 'true',
+        'mclimit': '10.0',
+        'searchsize': '300',
+    })
 
-    for node in nodes:
-        if skip_imports and node.type == NodeType.import_ or node.name in exclude:
-            graph.remove_node(node_prefix + node.name)
+    graph = nx.DiGraph()
+    prefix_nodes = {
+        s.name + '.': merge_nodes(s.name, s.file, ln) for s, ln in sources
+    }
+    for prefix, nodes in prefix_nodes.items():
+        for node in nodes:
+            name = node.name.center(12, ' ')
+            doc = node.docstring or f'{node.name} - no docstring'
+            doc = dedent(doc).replace('\n', '\\n')
+            attrs = {
+                'label': f'{name}\\n{node.type.value}:{node.lineno_str}',
+                'shape': type_shape[node.type],
+                'style': 'filled',
+                'tooltip': doc,
+            }
+            n_attrs = node_attrs.copy()
+            n_attrs.update(attrs)
+            graph.add_node(prefix + node.name, **n_attrs)
+            graph.add_edges_from([
+                (prefix + node.name, prefix + d) for d in node.deps
+            ], **edge_attrs)
+        gen_cluster_nodes(graph, prefix[:-1])
+
+    import_sources = set()
+    for _, nodes in prefix_nodes.items():
+        for node in nodes:
+            import_sources.update(node.import_sources)
+    for source in import_sources:
+        if '.' in source:
+            source = '.'.join(source.split('.')[:-1])
+        gen_cluster_nodes(graph, source)
+
+    for prefix, nodes in prefix_nodes.items():
+        for node in nodes:
+            if not node.import_sources:
+                continue
+            for s in node.import_sources:
+                e_attrs = edge_attrs.copy()
+                e_attrs['style'] = 'dashed'
+                if graph.has_node(s + '.' + cluster_invis_node):
+                    e_attrs.update({'lhead': 'cluster_' + s})
+                    graph.add_edge(
+                        prefix + node.name, s + '.' + cluster_invis_node, **e_attrs
+                    )
+                    continue
+
+                if not graph.has_node(s):
+                    graph.add_node(
+                        s, label=s.split('.')[-1], shape=type_shape[NodeType.import_]
+                    )
+                graph.add_edge(prefix + node.name, s, **e_attrs)
+
+    for name in exclude:
+        resolved = guess_node(graph, name)
+        if resolved:
+            graph.remove_node(resolved)
+
+    if skip_external:
+        internal = {p.split('.')[0] for p in prefix_nodes.keys()}
+        removed = set()
+        for node, data in graph.nodes.items():
+            if not data['shape'] == type_shape[NodeType.import_]:
+                continue
+            if all(v.split('.')[0] not in internal for _, v in graph.out_edges(node)):
+                removed.add(node)
+        graph.remove_nodes_from(removed)
+
+        removed = set()
+        for node in graph.nodes:
+            if node.split('.')[0] not in internal:
+                removed.add(node)
+        graph.remove_nodes_from(removed)
+
+    if imports == 'duplicate':
+        pass
+    elif imports in ('resolve', 'interface'):
+        removed = set()
+        for node, data in graph.nodes.items():
+            if not data['shape'] == type_shape[NodeType.import_]:
+                continue
+
+            out_edges = [(v, d) for _, v, d in graph.out_edges(node, data=True)]
+            if len(out_edges) != 1:
+                continue
+            out_edge, data = out_edges[0]
+
+            if imports == 'interface':
+                location = '.'.join(node.split('.')[:-1])
+                target = out_edge.replace('.' + cluster_invis_node, '')
+                if location in out_edge and node != target:
+                    continue
+
+            in_edges = [(u, d) for u, _, d in graph.in_edges(node, data=True)]
+            for in_edge, d in in_edges:
+                attrs = d.copy()
+                attrs.update(**data)
+                graph.add_edge(in_edge, out_edge, **attrs)
+            removed.add(node)
+        graph.remove_nodes_from(removed)
+    else:
+        raise ArgumentError(f'Pyfactor: invalid imports mode `{imports}`!')
 
     conn = {}
     for node in graph.nodes:
         in_deg = len([0 for u, v in graph.in_edges(node) if u != node])
         out_deg = len([0 for u, v in graph.out_edges(node) if v != node])
         conn[node] = (in_deg, out_deg)
+
+    centralities = sorted(i + o for i, o in conn.values())
+
+    for node in graph.nodes:
+        in_deg, out_deg = conn[node]
 
         if in_deg == 0 and out_deg == 0:
             fill = ConnectivityColor.isolated
@@ -205,10 +369,7 @@ def create_graph(
             fill = ConnectivityColor.default
         graph.nodes[node]['fillcolor'] = fill.value
 
-    centralities = sorted(i + o for i, o in conn.values())
-
-    for node in graph.nodes:
-        c = conn[node][0] + conn[node][1]
+        c = in_deg + out_deg
         central = sum(c > ct for ct in centralities) / len(centralities)
         for level, color in centrality_color.items():
             if central > level:
@@ -225,6 +386,8 @@ def create_graph(
     i = -1
     graph_nodes = list(graph.nodes)
     removed_nodes = set()
+    collapse_exclude = {guess_node(graph, n) for n in collapse_exclude}
+    collapse_exclude = {n for n in collapse_exclude if n is not None}
     while i + 1 < len(graph_nodes):
         i += 1
         node = graph_nodes[i]
@@ -243,7 +406,7 @@ def create_graph(
                 break
         else:
             append_color(graph.nodes[node], ConnectivityColor.waypoint.value)
-            if collapse_waypoints and node[len(node_prefix):] not in collapse_exclude:
+            if collapse_waypoints and node not in collapse_exclude:
                 graph.nodes[node]['peripheries'] = 2
                 for comp in components:
                     if len(comp & out_nodes):
@@ -251,15 +414,60 @@ def create_graph(
                         graph.remove_nodes_from(comp)
 
     if root:
-        done = set()
-        potential = {node_prefix + root}
-        while potential:
-            n = potential.pop()
-            done.add(n)
-            succ = graph.successors(n)
-            potential.update({s for s in succ if s not in done})
-        graph = graph.subgraph(done)
-    return graph
+        root_ref = guess_node(graph, root)
+        if root_ref:
+            done = set()
+            potential = {root_ref}
+            while potential:
+                n = potential.pop()
+                done.add(n)
+                succ = graph.successors(n)
+                potential.update({s for s in succ if s not in done})
+            graph = graph.subgraph(done)
+
+    # Construct module hierarchy
+    hierarchy = Level({}, {})
+    for node, data in graph.nodes.items():
+        parts = node.split('.')
+        tmp = hierarchy
+        for part in parts[:-1]:
+            if part not in tmp.sub:
+                tmp.sub[part] = Level({}, {})
+            tmp = tmp.sub[part]
+        tmp.names[parts[-1]] = data
+
+    gv_graph = gv.Digraph()
+    gv_graph.attr(**graph_attrs)
+    make_subgraphs(gv_graph, hierarchy, [])
+    for from_, to, data in graph.edges.data():
+        gv_graph.edge(from_, to, **data)
+    return gv_graph
+
+
+@dataclass
+class Level:
+    """Subgraph level."""
+
+    sub: Dict[str, 'Level']
+    names: Dict[str, Dict]
+
+
+def make_subgraphs(
+    graph: gv.Digraph, hierarchy: Level, location: List
+) -> None:
+    """Recursively construct subgraph hierarchy."""
+    for name, data in hierarchy.names.items():
+        graph.node('.'.join(location + [name]), **data)
+
+    for name, sub in hierarchy.sub.items():
+        new_loc = location + [name]
+        loc_str = '.'.join(new_loc)
+        name = 'cluster_' + loc_str
+        attrs = {
+            'label': loc_str.center(12, ' '), 'fontsize': '22.0', 'penwidth': '2.5'
+        }
+        with graph.subgraph(name=name, graph_attr=attrs) as subgraph:
+            make_subgraphs(subgraph, sub, new_loc)
 
 
 def preprocess(

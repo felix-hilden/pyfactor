@@ -1,26 +1,27 @@
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import List, Optional
 
 parser = ArgumentParser(
     allow_abbrev=False, description='Script dependency visualiser.'
 )
 
 group_mode = parser.add_argument_group('Source and output')
-group_mode.add_argument('source', nargs='?', help=(
-    'source file name. If source was disabled by leaving it unspecified, '
+group_mode.add_argument('sources', nargs='*', help=(
+    'source file names. If sources was disabled by providing no names, '
     '--graph is used as direct input for rendering. Disabling two or more of '
-    'SOURCE, --graph and --output will return with an error code 1.'
+    'SOURCES, --graph and --output will return with an error code 1.'
 ))
 group_mode.add_argument('--graph', '-g', nargs='?', default='-', const=None, help=(
     'write or read intermediate graph file. Graph output is disabled by default. '
     'If a value is specified, it is used as the file name. '
-    'The file name is inferred from SOURCE if no value is provided. '
-    'See SOURCE for more information.'
+    'If no value is provided, the name is inferred from combining SOURCES. '
+    'See SOURCES for more information.'
 ))
 group_mode.add_argument('--output', '-o', help=(
     'render file name. By default the name is inferred from --graph. '
     'If the name is a single hyphen, render output is disabled '
-    'and a graph is written to --graph. See SOURCE for more information. '
+    'and a graph is written to --graph. See SOURCES for more information. '
     'NOTE: --format is appended to the name'
 ))
 group_mode.add_argument('--format', '-f', default='svg', help=(
@@ -35,7 +36,19 @@ group_mode.add_argument(
 
 group_parse = parser.add_argument_group('Parsing options')
 group_parse.add_argument(
-    '--skip-imports', '-si', action='store_true', help='do not visualise imports'
+    '--imports', '-i', default='interface', help=(
+        'duplicate or resolve import nodes. '
+        'Valid values are duplicate, interface and resolve (default: %(default)s). '
+        'Duplicating produces a node for each import in the importing source. '
+        'Resolving imports links edges directly to the original definitions instead. '
+        '"interface" leaves import nodes that reference definitions directly below '
+        'the import in the module hierarchy and resolves others.'
+    )
+)
+group_parse.add_argument(
+    '--skip-external', '-se', action='store_true', help=(
+        'do not visualise imports to external modules'
+    )
 )
 group_parse.add_argument(
     '--exclude', '-e', action='append', help='exclude nodes in the source'
@@ -107,28 +120,39 @@ class ArgumentError(RuntimeError):
     """Invalid command line arguments given."""
 
 
-def parse_names(source, graph, output):
+def make_absolute(path: Path) -> Path:
+    """Make absolute path out of a potentially relative one."""
+    return path if path.is_absolute() else Path.cwd() / path
+
+
+def infer_graph_from_sources(sources: List[str]) -> Path:
+    """Infer graph name from sources."""
+    parts = [make_absolute(Path(s)).stem for s in sources]
+    return Path('-'.join(parts)).with_suffix('.gv')
+
+
+def parse_names(sources: List[str], graph: Optional[str], output: Optional[str]):
     """Parse file names from arguments."""
-    if source is None and (graph is None or graph == '-'):
+    if not sources and (not graph or graph == '-'):
         raise ArgumentError('Pyfactor: no input specified!')
     if graph == '-' and output == '-':
         raise ArgumentError('Pyfactor: all output disabled!')
-    if source is None and output == '-':
+    if not sources and output == '-':
         raise ArgumentError('Pyfactor: only graph name specified!')
 
-    if source is None:
-        g = Path(graph)
-        o = Path(output) if output else g.with_suffix('')
-        return None, g, o
+    if not sources:
+        o = output or str(Path(graph).with_suffix(''))
+        return None, graph, o
 
-    s = Path(source)
+    inferred = infer_graph_from_sources(sources)
     if graph == '-':
-        o = Path(output) if output else s.with_suffix('')
-        return s, None, o
+        o = output or str(inferred.with_suffix(''))
+        return sources, None, o
+
     if output == '-':
-        g = Path(graph) if graph else s.with_suffix('.gv')
-        return s, g, None
+        g = graph or str(inferred)
+        return sources, g, None
     else:
-        g = Path(graph) if graph else s.with_suffix('.gv')
-        o = Path(output) if output else g.with_suffix('')
-        return s, g, o
+        g = Path(graph) if graph else inferred
+        o = output or str(g.with_suffix(''))
+        return sources, str(g), o
