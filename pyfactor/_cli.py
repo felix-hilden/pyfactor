@@ -38,7 +38,7 @@ group_parse = parser.add_argument_group('Parsing options')
 group_parse.add_argument(
     '--imports', '-i', default='interface', help=(
         'duplicate or resolve import nodes. '
-        'Valid values are duplicate, interface and resolve (default: %(default)). '
+        'Valid values are duplicate, interface and resolve (default: %(default)s). '
         'Duplicating produces a node for each import in the importing source. '
         'Resolving imports links edges directly to the original definitions instead. '
         '"interface" leaves import nodes that reference definitions directly below '
