@@ -276,8 +276,9 @@ def create_graph(
             if not node.import_sources:
                 continue
             for s in node.import_sources:
+                e_attrs = edge_attrs.copy()
+                e_attrs['style'] = 'dashed'
                 if graph.has_node(s + '.' + cluster_invis_node):
-                    e_attrs = edge_attrs.copy()
                     e_attrs.update({'lhead': 'cluster_' + s})
                     graph.add_edge(
                         prefix + node.name, s + '.' + cluster_invis_node, **e_attrs
@@ -288,7 +289,7 @@ def create_graph(
                     graph.add_node(
                         s, label=s.split('.')[-1], shape=type_shape[NodeType.import_]
                     )
-                graph.add_edge(prefix + node.name, s, **edge_attrs)
+                graph.add_edge(prefix + node.name, s, **e_attrs)
 
     for name in exclude:
         resolved = guess_node(graph, name)
