@@ -89,6 +89,7 @@ for example in gallery_examples:
     source_path = gallery_path / (repository_name + '.py')
     doc_path = source_path.with_suffix('.rst')
     image_path = source_path.with_suffix('')
+    source_path = source_path.with_name(repository_name + '_example.py')
 
     source_path.write_text(source_text, encoding='utf-8')
     doc_path.write_text(doc_text, encoding='utf-8')
