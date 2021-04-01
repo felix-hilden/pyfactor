@@ -12,7 +12,8 @@ _version_file = _Path(_os.path.realpath(__file__)).parent / 'VERSION'
 __version__ = _version_file.read_text().strip()
 
 from . import _cli, _visit, _graph, _io
-from ._graph import create_legend, preprocess, render
+from ._graph import create_legend
+from ._gv import preprocess, render
 
 
 def parse(
