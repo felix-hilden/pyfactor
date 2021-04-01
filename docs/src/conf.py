@@ -39,10 +39,10 @@ gallery_path = _root / 'docs' / 'src' / 'gallery'
 gallery_examples = [
     'felix-hilden/pyfactor/522f3ee5/pyfactor/_parse.py',
     'pydot/pydot/5c9b2ce7/pydot.py',
-    'PyCQA/flake8/6de8252c/src/flake8/style_guide.py',
-    'psf/black/692c0f50/src/black/__init__.py',
-    'agronholm/sphinx-autodoc-typehints/2fac99f4/sphinx_autodoc_typehints.py',
-    'pytest-dev/pytest/d5df8f99/src/_pytest/python.py',
+    'PyCQA/flake8/e0116d8e/src/flake8/style_guide.py',
+    'psf/black/c702588d/src/black/__init__.py',
+    'agronholm/sphinx-autodoc-typehints/49face65/sphinx_autodoc_typehints.py',
+    'pytest-dev/pytest/0061ec55/src/_pytest/python.py',
 ]
 
 
