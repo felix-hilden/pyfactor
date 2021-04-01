@@ -12,6 +12,7 @@ from ._cli import ArgumentError, make_absolute
 class Source:
     file: Path
     name: str
+    content: str = None
 
 
 def find_package_top(file: Path):
