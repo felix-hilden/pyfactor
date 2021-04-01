@@ -11,6 +11,7 @@ from warnings import warn
 from typing import List, Dict, Set, Optional, Tuple
 from ._visit import Line
 from ._io import Source
+from ._cli import ArgumentError
 
 
 class NodeType(Enum):
@@ -216,6 +217,7 @@ def gen_cluster_nodes(graph: nx.DiGraph, levels: str) -> None:
 def create_graph(
     sources: List[Tuple[Source, List[Line]]],
     skip_external: bool = False,
+    imports: str = 'interface',
     exclude: List[str] = None,
     root: str = None,
     collapse_waypoints: bool = False,
@@ -230,7 +232,12 @@ def create_graph(
     graph_attrs = graph_attrs or {}
     node_attrs = node_attrs or {}
     edge_attrs = edge_attrs or {}
-    graph_attrs.update({'compound': 'true'})
+    graph_attrs.update({
+        'compound': 'true',
+        'newrank': 'true',
+        'mclimit': '10.0',
+        'searchsize': '300',
+    })
 
     graph = nx.DiGraph()
     prefix_nodes = {
@@ -303,6 +310,35 @@ def create_graph(
             if node.split('.')[0] not in internal:
                 removed.add(node)
         graph.remove_nodes_from(removed)
+
+    if imports == 'duplicate':
+        pass
+    elif imports in ('resolve', 'interface'):
+        removed = set()
+        for node, data in graph.nodes.items():
+            if not data['shape'] == type_shape[NodeType.import_]:
+                continue
+
+            out_edges = [(v, d) for _, v, d in graph.out_edges(node, data=True)]
+            if len(out_edges) != 1:
+                continue
+            out_edge, data = out_edges[0]
+
+            if imports == 'interface':
+                location = '.'.join(node.split('.')[:-1])
+                target = out_edge.replace('.' + cluster_invis_node, '')
+                if location in out_edge and node != target:
+                    continue
+
+            in_edges = [(u, d) for u, _, d in graph.in_edges(node, data=True)]
+            for in_edge, d in in_edges:
+                attrs = d.copy()
+                attrs.update(**data)
+                graph.add_edge(in_edge, out_edge, **attrs)
+            removed.add(node)
+        graph.remove_nodes_from(removed)
+    else:
+        raise ArgumentError(f'Pyfactor: invalid imports mode `{imports}`!')
 
     conn = {}
     for node in graph.nodes:

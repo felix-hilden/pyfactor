@@ -36,6 +36,16 @@ group_mode.add_argument(
 
 group_parse = parser.add_argument_group('Parsing options')
 group_parse.add_argument(
+    '--imports', '-i', default='interface', help=(
+        'duplicate or resolve import nodes. '
+        'Valid values are duplicate, interface and resolve (default: %(default)). '
+        'Duplicating produces a node for each import in the importing source. '
+        'Resolving imports links edges directly to the original definitions instead. '
+        '"interface" leaves import nodes that reference definitions directly below '
+        'the import in the module hierarchy and resolves others.'
+    )
+)
+group_parse.add_argument(
     '--skip-external', '-se', action='store_true', help=(
         'do not visualise imports to external modules'
     )

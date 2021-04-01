@@ -19,6 +19,7 @@ def parse(
     source_paths: _List[str],
     graph_path: str,
     skip_external: bool = False,
+    imports: str = 'interface',
     exclude: _List[str] = None,
     root: str = None,
     collapse_waypoints: bool = False,
@@ -38,6 +39,8 @@ def parse(
         path to graph file to write
     skip_external
         do not visualise imports to external modules (reducing clutter)
+    imports
+        import duplication/resolving mode
     exclude
         exclude nodes in the graph
     root
@@ -59,6 +62,7 @@ def parse(
     graph = _graph.create_graph(
         list(zip(sources, parsed)),
         skip_external=skip_external,
+        imports=imports,
         exclude=exclude,
         root=root,
         collapse_waypoints=collapse_waypoints,
@@ -150,6 +154,7 @@ def main() -> None:
 
     parse_kwargs = {
         'skip_external': args.skip_external,
+        'imports': args.imports,
         'exclude': args.exclude,
         'collapse_waypoints': args.collapse_waypoints,
         'collapse_exclude': args.collapse_exclude,
