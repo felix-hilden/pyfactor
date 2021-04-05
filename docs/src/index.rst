@@ -1,15 +1,15 @@
 ========
 Pyfactor
 ========
-Welcome to the documentation of *Pyfactor*
-- a refactoring tool that visualises Python source files as a graph of
-dependencies between Python constructs like variables, functions and classes.
+Welcome to the documentation of *Pyfactor* - a refactoring tool that visualises
+Python source files, modules and importable packages as a graph of dependencies
+between Python constructs like variables, functions and classes.
 
 .. code:: sh
 
     $ pyfactor --help
     $ pyfactor script.py
-    $ pyfactor script.py --skip-imports --view
+    $ pyfactor script.py --skip-external --view
 
 See our `PyPI`_ page for installation instructions and package information.
 If you've found a bug or would like to propose a feature,
@@ -25,7 +25,7 @@ More examples can be found in our :ref:`gallery`.
 
 *Pyfactor* is fundamentally a command line tool.
 However, the functionality is also exposed for use in code.
-See :ref:`reference` for more information.
+See :ref:`reference` for CLI help and more information.
 
 Motivation
 ==========

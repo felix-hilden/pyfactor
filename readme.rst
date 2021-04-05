@@ -3,15 +3,16 @@ Pyfactor
 ========
 |build| |documentation|
 
-Welcome to the GitHub repository of *Pyfactor* - a refactoring tool
-that `visualises <rtd-gallery_>`_ Python source files as a graph of
-dependencies between Python constructs like variables, functions and classes.
+Welcome to the GitHub repository of *Pyfactor*
+- a refactoring tool that `visualises <rtd-gallery_>`_
+Python source files, modules and importable packages as a graph of dependencies
+between Python constructs like variables, functions and classes.
 
 .. code:: sh
 
     $ pyfactor --help
     $ pyfactor script.py
-    $ pyfactor script.py --skip-imports --view
+    $ pyfactor script.py --skip-external --view
 
 See our `PyPI`_ page for installation instructions and package information.
 Visit our online documentation on `Read The Docs`_
