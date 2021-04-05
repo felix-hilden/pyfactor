@@ -25,7 +25,7 @@ More examples can be found in our :ref:`gallery`.
 
 *Pyfactor* is fundamentally a command line tool.
 However, the functionality is also exposed for use in code.
-See :ref:`reference` for CLI help and more information.
+See :ref:`reference` for CLI help and :ref:`guide` for configuration tips.
 
 Motivation
 ==========
@@ -49,6 +49,7 @@ but *Pyfactor* is here to help!
 
    release-notes
    reference
+   guide
    gallery
 
 .. _pypi: https://pypi.org/project/pyfactor
