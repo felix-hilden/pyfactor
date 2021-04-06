@@ -407,7 +407,7 @@ def create_graph(
         else:
             append_color(graph.nodes[node], ConnectivityColor.waypoint.value)
             if collapse_waypoints and node not in collapse_exclude:
-                graph.nodes[node]['peripheries'] = 2
+                graph.nodes[node]['peripheries'] = '2'
                 for comp in components:
                     if len(comp & out_nodes):
                         removed_nodes = removed_nodes | comp
