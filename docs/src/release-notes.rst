@@ -2,12 +2,13 @@
 
 Release notes
 =============
-Unreleased
-----------
+0.4.0 (2021-04-06)
+------------------
 - Add multi-file, recursive and importable module analysis (:issue:`5`)
 - Split CLI file name specification to separate arguments (:issue:`5`)
 - Add option to specify graph root (:issue:`14`)
 - Expand assignment parsing (:issue:`18`)
+- Fix CLI and source gathering logic
 
 0.3.0 (2021-03-05)
 ------------------
