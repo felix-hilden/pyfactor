@@ -2,8 +2,10 @@
 
 Gallery
 =======
-This gallery contains example visualisations from various public libraries.
-Note that because the examples refer to specific commits, they may be outdated.
+This gallery contains example visualisations
+of builtin modules and public libraries.
+Note that because the public library examples refer to specific Git commits,
+they may be outdated.
 
 .. toctree::
    :caption: Contents

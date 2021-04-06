@@ -36,7 +36,7 @@ extlinks = {
 
 # ----- Generate gallery entries -----
 gallery_path = _root / 'docs' / 'src' / 'gallery'
-gallery_examples = [
+public_examples = [
     'felix-hilden/pyfactor/522f3ee5/pyfactor/_parse.py',
     'pydot/pydot/5c9b2ce7/pydot.py',
     'PyCQA/flake8/e0116d8e/src/flake8/style_guide.py',
@@ -44,10 +44,11 @@ gallery_examples = [
     'agronholm/sphinx-autodoc-typehints/49face65/sphinx_autodoc_typehints.py',
     'pytest-dev/pytest/0061ec55/src/_pytest/python.py',
 ]
+builtin_examples = ['concurrent', 'json', 'importlib']
 
 
-def gallery_doc(name: str, url: str) -> str:
-    """Generate gallery docs from template."""
+def public_doc(name: str, url: str) -> str:
+    """Generate public module gallery docs from template."""
     summary = f'This example was generated from `{name} source <{url}>`_'
     summary = '\n'.join(textwrap.wrap(summary, width=79))
     return f""".. _gallery-{name}:
@@ -56,6 +57,24 @@ def gallery_doc(name: str, url: str) -> str:
 {'=' * len(name)}
 {summary}
 with :code:`pyfactor source.py --skip-external`.
+Click the image to enlarge.
+
+.. image:: {name}.svg
+   :target: ../_images/{name}.svg
+   :alt: {name} visualisation
+"""
+
+
+def builtin_doc(name: str) -> str:
+    """Generate builtin module gallery docs from template."""
+    summary = f'This example was generated from the builtin ``{name}`` module'
+    summary = '\n'.join(textwrap.wrap(summary, width=79))
+    return f""".. _gallery-{name}:
+
+{name}
+{'=' * len(name)}
+{summary}
+with :code:`pyfactor {name} --skip-external`.
 Click the image to enlarge.
 
 .. image:: {name}.svg
@@ -75,7 +94,11 @@ pyfactor.legend(str(legend_path), {'chain': 2}, {'format': 'svg'})
 
 # Generate examples
 gallery_path.mkdir(exist_ok=True)
-for example in gallery_examples:
+parse_kwargs = {'skip_external': True}
+preprocess_kwargs = {'stagger': 10, 'fanout': True, 'chain': 5}
+render_kwargs = {'format': 'svg'}
+
+for example in public_examples:
     print('Generating gallery example:', example)
     raw_url = 'https://raw.githubusercontent.com/' + example
     url_parts = example.split('/')
@@ -84,7 +107,7 @@ for example in gallery_examples:
     repository_name = url_parts[1]
 
     source_text = requests.get(raw_url).text
-    doc_text = gallery_doc(repository_name, ui_url)
+    doc_text = public_doc(repository_name, ui_url)
 
     source_path = gallery_path / (repository_name + '.py')
     doc_path = source_path.with_suffix('.rst')
@@ -96,7 +119,21 @@ for example in gallery_examples:
 
     pyfactor.pyfactor(
         [str(source_path)], None, str(image_path),
-        parse_kwargs={'skip_external': True},
-        preprocess_kwargs={'stagger': 10, 'fanout': True, 'chain': 5},
-        render_kwargs={'format': 'svg'},
+        parse_kwargs=parse_kwargs,
+        preprocess_kwargs=preprocess_kwargs,
+        render_kwargs=render_kwargs,
+    )
+
+for example in builtin_examples:
+    print('Generating gallery example:', example)
+    doc_text = builtin_doc(example)
+    image_path = gallery_path / example
+    doc_path = image_path.with_suffix('.rst')
+    doc_path.write_text(doc_text, encoding='utf-8')
+
+    pyfactor.pyfactor(
+        [example], None, str(image_path),
+        parse_kwargs=parse_kwargs,
+        preprocess_kwargs=preprocess_kwargs,
+        render_kwargs=render_kwargs,
     )
