@@ -5,10 +5,6 @@ from .base import Visitor, Name, Scope, Line
 from .._io import Source
 
 
-class ParsingError(Exception):
-    """Error in source parsing."""
-
-
 def multi_union(sets: Iterable[Set]) -> Set:
     """Union of multiple sets."""
     return set().union(*sets)
@@ -70,9 +66,8 @@ def assign_target_name(node) -> Name:
         name.is_definition = False
         return name
     else:
-        raise ParsingError(
-            f'Error on line {node.lineno}: unknown assignment type!'
-        )
+        deps = collect_names(node)
+        return Name(None, deps=deps, is_definition=False)
 
 
 def flatten_assign_targets(targets: List[ast.AST]) -> List[ast.AST]:
@@ -405,7 +400,7 @@ def parse_scoped(visitor: Visitor, scope: Scope) -> Tuple[List[Name], Optional[s
 
         child.update_scope(scope)
 
-        assigns = {n.name for n in c_names}
+        assigns = {n.name for n in c_names if n.name is not None}
         uses = multi_union(n.deps for n in c_names)
         scope.assigned.update(assigns - scope.used)
         scope.used.update(uses)
@@ -415,7 +410,8 @@ def parse_scoped(visitor: Visitor, scope: Scope) -> Tuple[List[Name], Optional[s
 
 def parse_no_scope(visitor: Visitor) -> List[Line]:
     """Fully parse nodes as in outermost scope."""
-    self_line = Line(visitor.node, visitor.parse_names(), docstring=None)
+    names = [n for n in visitor.parse_names() if n.name is not None]
+    self_line = Line(visitor.node, names, docstring=None)
     lines = []
     previous = visitor
     for child in visitor.children():
@@ -433,6 +429,7 @@ def parse_no_scope(visitor: Visitor) -> List[Line]:
         if child.breaks_scope:
             scope = child.create_scope()
             c_names, doc = parse_scoped(child, scope)
+            c_names = [n for n in c_names if n.name is not None]
             merged = Scope()
             child.merge_scopes(merged, scope)
             deps = merged.inner_globaled | merged.inner_potential
@@ -457,11 +454,7 @@ def parse_no_scope(visitor: Visitor) -> List[Line]:
 def parse_lines(source: Source) -> List[Line]:
     """Parse name definitions and references on lines from source."""
     tree = ast.parse(source.content)
-    try:
-        lines = parse_no_scope(cast(tree))
-    except ParsingError as original:
-        msg = f'Error in {source.name} parsing {source.file}: {str(original)}'
-        raise ParsingError(msg) from original
+    lines = parse_no_scope(cast(tree))
     defined_names = {n.name for line in lines for n in line.names}
 
     for line in lines:

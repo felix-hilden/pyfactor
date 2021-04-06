@@ -121,3 +121,33 @@ class TestAssign:
         source = 'a = 0\nb = 1\na.c[b] = 1'
         refs = [('a', set()), ('b', set()), ('a', {'b'})]
         return source, refs
+
+    @refs_equal
+    def test_assign_to_call_subscript(self):
+        source = 'a = 0\na()["b"] = 1'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_call_attribute(self):
+        source = 'a = 0\na().b = 1'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_comp_subscript(self):
+        source = '{i: i for i in range(3)}["a"] = 1'
+        refs = []
+        return source, refs
+
+    @refs_equal
+    def test_assign_to_comp_subscript_uses_var(self):
+        source = 'a = 1\n{i: i for i in range(3)}[a] = 1'
+        refs = [('a', set())]
+        return source, refs
+
+    @refs_equal
+    def test_assign_in_func_call_subscript_uses_var(self):
+        source = 'a = 1\ndef foo():\n  a().b = 1'
+        refs = [('a', set()), ('foo', {'a'})]
+        return source, refs

@@ -8,7 +8,7 @@ from typing import List, Set, Optional
 class Name:
     """Name dependencies."""
 
-    name: str
+    name: Optional[str]
     deps: Set[str]
     is_definition: bool
     source: str = None
