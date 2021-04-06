@@ -2,8 +2,8 @@
 
 Release notes
 =============
-Unreleased
-----------
+0.4.1 (2021-04-06)
+------------------
 - Fix collapsing waypoints attribute error on graph conversion
 
 0.4.0 (2021-04-06)
